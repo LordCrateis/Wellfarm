@@ -1,0 +1,48 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+secrets/
+
+# JavaScript / TypeScript
+node_modules/
+dist/
+build/
+.next/
+.turbo/
+coverage/
+
+# Python / machine learning
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.onnx
+*.pt
+*.pth
+*.h5
+models/artifacts/
+
+# Data generated locally
+data/raw/
+data/processed/
+data/private/
+*.sqlite3
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Logs and temporary files
+*.log
+tmp/
+.cache/
+
