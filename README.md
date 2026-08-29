@@ -1,18 +1,18 @@
-# AgriSentinel
+# Wellfarm
 
 **Early crop disease and pest detection connected to regional outbreak intelligence.**
 
-AgriSentinel is a proposed Smart India Hackathon solution for problem statement **SIH26131**, issued by the Government of Maharashtra's Maharashtra State Innovation Society. It is intended to help farmers identify crop problems earlier while giving agriculture officials a live, privacy-aware view of emerging regional patterns.
+Wellfarm is a proposed Smart India Hackathon solution for problem statement **SIH26131**, issued by the Government of Maharashtra's Maharashtra State Innovation Society. It is intended to help farmers identify crop problems earlier while giving agriculture officials a live, privacy-aware view of emerging regional patterns.
 
 > This repository currently contains the product definition, system architecture, contracts, safe demo data, and implementation scaffolding for the Round 1 prototype. It is not yet a production diagnosis system.
 
 ## Why this project exists
 
-A crop scan is more valuable when it can safely inform nearby communities. Existing diagnosis tools can help an individual farmer identify visible symptoms, but AgriSentinel's central idea is to connect anonymized scans, weather observations, government response, and laboratory verification into one feedback loop.
+A crop scan is more valuable when it can safely inform nearby communities. Existing diagnosis tools can help an individual farmer identify visible symptoms, but Wellfarm's central idea is to connect anonymized scans, weather observations, government response, and laboratory verification into one feedback loop.
 
 The system is designed to reduce delayed diagnosis, inappropriate pesticide use, avoidable cost, yield loss, and the lack of timely outbreak visibility for officials. It provides decision support and does not replace qualified agricultural or laboratory expertise.
 
-## What AgriSentinel will do
+## What Wellfarm will do
 
 - Let farmers photograph crop symptoms and receive a probable classification.
 - Turn structured findings into simple, localized, regional-language guidance.
@@ -94,7 +94,7 @@ See [SECURITY.md](SECURITY.md) before handling vulnerabilities or sensitive info
 
 ## Project status
 
-AgriSentinel is at the **Round 1 idea, architecture, and prototype-foundation stage**. The [roadmap](docs/roadmap.md) separates the hackathon demo from pilot and production requirements.
+Wellfarm is at the **Round 1 idea, architecture, and prototype-foundation stage**. The [roadmap](docs/roadmap.md) separates the hackathon demo from pilot and production requirements.
 
 ## Contributing
 
@@ -103,4 +103,3 @@ The current team has six members covering core implementation, dataset research,
 ## License
 
 Repository code and documentation are available under the [MIT License](LICENSE). Third-party datasets and models retain their own licenses and must be reviewed separately before use.
-

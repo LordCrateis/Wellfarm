@@ -1,6 +1,6 @@
 # System Architecture
 
-AgriSentinel is designed as a modular platform so the Round 1 demo can use simulations while keeping the path to a validated pilot explicit.
+Wellfarm is designed as a modular platform so the Round 1 demo can use simulations while keeping the path to a validated pilot explicit.
 
 ```mermaid
 flowchart TD
@@ -81,4 +81,3 @@ The prototype may run all interfaces and mock services locally. Synthetic fixtur
 - Keep personally identifying data separate from anonymized analytical records.
 - Require review for high-impact advisories and model promotions.
 - Log input provenance, prompt/template version, model version, and human verification.
-

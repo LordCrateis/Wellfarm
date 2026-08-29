@@ -1,4 +1,4 @@
-# AgriSentinel Product Requirements
+# Wellfarm Product Requirements
 
 ## Project context
 
@@ -14,7 +14,7 @@ Farmers often discover diseases and pest infestations after visible crop damage.
 
 ## Proposed solution
 
-AgriSentinel is a farmer- and official-facing platform that connects individual crop scans to regional intelligence. Farmers photograph symptoms and receive simple, localized guidance. Anonymized reports are grouped geographically, correlated with weather, and summarized for officials. Moderate- and high-risk cases can be routed to nearby laboratories for confirmation, creating a feedback loop between farmers, officials, and labs.
+Wellfarm is a farmer- and official-facing platform that connects individual crop scans to regional intelligence. Farmers photograph symptoms and receive simple, localized guidance. Anonymized reports are grouped geographically, correlated with weather, and summarized for officials. Moderate- and high-risk cases can be routed to nearby laboratories for confirmation, creating a feedback loop between farmers, officials, and labs.
 
 ## Users
 
@@ -82,4 +82,3 @@ The demo must distinguish working behavior from simulated or planned behavior. V
 - Treat generated advice as decision support, not a replacement for agricultural experts.
 - Validate pesticide-related guidance against official recommendations before release.
 - Keep Round 1 claims aligned with what is genuinely implemented.
-

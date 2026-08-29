@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://agrisentinel.example/schemas/scan.schema.json",
+  "$id": "https://wellfarm.example/schemas/scan.schema.json",
   "title": "Crop scan",
   "type": "object",
   "required": [
@@ -27,4 +27,3 @@
   },
   "additionalProperties": false
 }
-

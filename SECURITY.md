@@ -1,6 +1,6 @@
 # Security and Responsible Disclosure
 
-AgriSentinel is an early prototype and must not be used as the sole basis for crop-treatment decisions.
+Wellfarm is an early prototype and must not be used as the sole basis for crop-treatment decisions.
 
 ## Reporting a vulnerability
 
@@ -15,4 +15,3 @@ Do not open a public issue containing an exploit, credential, precise farmer loc
 - Unlicensed model weights or data
 
 Use synthetic records for development and demonstration. Revoke any exposed credential immediately and remove it from both the current tree and repository history.
-

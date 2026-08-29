@@ -1,4 +1,4 @@
-# Contributing to AgriSentinel
+# Contributing to Wellfarm
 
 ## Before starting
 
@@ -27,4 +27,3 @@
 ## Definition of done
 
 A change is understandable, contains no sensitive material, respects the Round 1 scope boundary, and has been checked at the level appropriate to its risk. User-facing changes include accessible states for errors, uncertainty, and simulation labels.
-
