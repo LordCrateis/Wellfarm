@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agrisentinel.example/schemas/district-summary.schema.json",
+  "title": "District outbreak summary",
+  "type": "object",
+  "required": [
+    "district_code",
+    "district_name",
+    "severity",
+    "report_count",
+    "generated_at",
+    "data_source"
+  ],
+  "properties": {
+    "district_code": { "type": "string" },
+    "district_name": { "type": "string" },
+    "state_name": { "type": "string" },
+    "severity": { "enum": ["low", "moderate", "high"] },
+    "report_count": { "type": "integer", "minimum": 0 },
+    "top_crop": { "type": ["string", "null"] },
+    "top_issue": { "type": ["string", "null"] },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "data_source": { "enum": ["field", "simulated"] }
+  },
+  "additionalProperties": false
+}
+

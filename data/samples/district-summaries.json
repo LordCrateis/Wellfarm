@@ -1,0 +1,36 @@
+[
+  {
+    "district_code": "MH-PUN",
+    "district_name": "Pune",
+    "state_name": "Maharashtra",
+    "severity": "moderate",
+    "report_count": 37,
+    "top_crop": "Tomato",
+    "top_issue": "Early blight",
+    "generated_at": "2026-08-01T00:00:00Z",
+    "data_source": "simulated"
+  },
+  {
+    "district_code": "MH-NAS",
+    "district_name": "Nashik",
+    "state_name": "Maharashtra",
+    "severity": "high",
+    "report_count": 82,
+    "top_crop": "Onion",
+    "top_issue": "Thrips",
+    "generated_at": "2026-08-01T00:00:00Z",
+    "data_source": "simulated"
+  },
+  {
+    "district_code": "MH-SAT",
+    "district_name": "Satara",
+    "state_name": "Maharashtra",
+    "severity": "low",
+    "report_count": 9,
+    "top_crop": "Soybean",
+    "top_issue": null,
+    "generated_at": "2026-08-01T00:00:00Z",
+    "data_source": "simulated"
+  }
+]
+

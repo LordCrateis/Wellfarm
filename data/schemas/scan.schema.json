@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agrisentinel.example/schemas/scan.schema.json",
+  "title": "Crop scan",
+  "type": "object",
+  "required": [
+    "scan_id",
+    "crop",
+    "district_code",
+    "observed_at",
+    "risk_level",
+    "data_source"
+  ],
+  "properties": {
+    "scan_id": { "type": "string", "format": "uuid" },
+    "crop": { "type": "string", "minLength": 1 },
+    "probable_issue": { "type": ["string", "null"] },
+    "confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+    "district_code": { "type": "string", "minLength": 1 },
+    "observed_at": { "type": "string", "format": "date-time" },
+    "risk_level": { "enum": ["low", "moderate", "high"] },
+    "data_source": {
+      "enum": ["field", "laboratory", "public_dataset", "simulated"]
+    },
+    "model_version": { "type": ["string", "null"] },
+    "verified": { "type": "boolean", "default": false }
+  },
+  "additionalProperties": false
+}
+
