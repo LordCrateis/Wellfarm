@@ -1,4 +1,8 @@
-import express, { type Express } from "express";
+import express, {
+  type ErrorRequestHandler,
+  type Express,
+  type RequestHandler,
+} from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
@@ -30,5 +34,27 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
+
+const notFoundHandler: RequestHandler = (_req, res) => {
+  res.status(404).json({
+    error: {
+      code: "ROUTE_NOT_FOUND",
+      message: "The requested API route does not exist.",
+    },
+  });
+};
+
+const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
+  logger.error({ err: error }, "Unhandled API error");
+  res.status(500).json({
+    error: {
+      code: "INTERNAL_ERROR",
+      message: "The server could not complete the request.",
+    },
+  });
+};
+
+app.use("/api", notFoundHandler);
+app.use(errorHandler);
 
 export default app;

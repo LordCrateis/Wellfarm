@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: scans
+    description: Farmer crop scan records
 paths:
   /healthz:
     get:
@@ -24,6 +26,57 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /scans:
+    post:
+      operationId: createScan
+      tags: [scans]
+      summary: Create a crop scan
+      description: Stores farmer-provided crop details and GPS coordinates before analysis.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateScanInput"
+      responses:
+        "201":
+          description: Scan created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Scan"
+        "400":
+          description: Invalid scan data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /scans/{scanId}:
+    get:
+      operationId: getScan
+      tags: [scans]
+      summary: Get a crop scan
+      description: Returns one stored crop scan by its identifier.
+      parameters:
+        - name: scanId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: Scan found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Scan"
+        "404":
+          description: Scan not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +86,106 @@ components:
           type: string
       required:
         - status
+    Crop:
+      type: string
+      enum:
+        - Rice
+        - Wheat
+        - Maize
+        - Cotton
+        - Sugarcane
+        - Soybean
+        - Groundnut
+        - Tomato
+        - Potato
+        - Onion
+    CreateScanInput:
+      type: object
+      additionalProperties: false
+      properties:
+        crop:
+          $ref: "#/components/schemas/Crop"
+        symptoms:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+            minLength: 1
+            maxLength: 200
+        affectedPart:
+          type: string
+          minLength: 1
+          maxLength: 100
+        growthStage:
+          type: string
+          minLength: 1
+          maxLength: 100
+        affectedAreaPercentage:
+          type: number
+          multipleOf: 1
+          minimum: 0
+          maximum: 100
+        nearbyPlantsAffected:
+          type: boolean
+        notes:
+          type: string
+          maxLength: 2000
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
+      required:
+        - crop
+        - latitude
+        - longitude
+    Scan:
+      allOf:
+        - $ref: "#/components/schemas/CreateScanInput"
+        - type: object
+          properties:
+            id:
+              type: string
+            status:
+              type: string
+              enum: [pending, analyzing, completed, failed]
+            imagePath:
+              type:
+                - string
+                - "null"
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+          required:
+            - id
+            - status
+            - imagePath
+            - createdAt
+            - updatedAt
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: array
+              items:
+                type: object
+                additionalProperties: true
+          required:
+            - code
+            - message
+      required:
+        - error
 
