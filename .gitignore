@@ -30,6 +30,8 @@ venv/
 models/artifacts/
 
 # Data generated locally
+data/archives/
+data/_dataset_staging/
 data/raw/
 data/processed/
 data/private/
