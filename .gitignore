@@ -50,3 +50,4 @@ Thumbs.db
 tmp/
 .cache/
 .pnpm-store/
+.firecrawl/

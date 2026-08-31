@@ -12,6 +12,8 @@ tags:
     description: Health operations
   - name: scans
     description: Farmer crop scan records
+  - name: weather
+    description: Live field weather context
 paths:
   /healthz:
     get:
@@ -157,6 +159,46 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /weather:
+    get:
+      operationId: getWeather
+      tags: [weather]
+      summary: Get current field weather
+      description: Returns current Open-Meteo conditions for GPS coordinates without requiring an API key.
+      parameters:
+        - name: latitude
+          in: query
+          required: true
+          schema:
+            type: number
+            minimum: -90
+            maximum: 90
+        - name: longitude
+          in: query
+          required: true
+          schema:
+            type: number
+            minimum: -180
+            maximum: 180
+      responses:
+        "200":
+          description: Current weather returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Weather"
+        "400":
+          description: Invalid coordinates
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: Live weather is temporarily unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
     HealthStatus:
@@ -230,6 +272,50 @@ components:
           format: binary
       required:
         - image
+    Weather:
+      type: object
+      properties:
+        latitude:
+          type: number
+        longitude:
+          type: number
+        temperatureCelsius:
+          type: number
+        relativeHumidityPercentage:
+          type: number
+        precipitationMm:
+          type: number
+        windSpeedKph:
+          type: number
+        weatherCode:
+          type: number
+          multipleOf: 1
+        isDay:
+          type: boolean
+        observedAt:
+          type: string
+          format: date-time
+        timezone:
+          type: string
+        source:
+          type: string
+          enum: [open-meteo]
+        freshness:
+          type: string
+          enum: [live, cached]
+      required:
+        - latitude
+        - longitude
+        - temperatureCelsius
+        - relativeHumidityPercentage
+        - precipitationMm
+        - windSpeedKph
+        - weatherCode
+        - isDay
+        - observedAt
+        - timezone
+        - source
+        - freshness
     Scan:
       allOf:
         - $ref: "#/components/schemas/CreateScanInput"

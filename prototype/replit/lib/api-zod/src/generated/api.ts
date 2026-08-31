@@ -337,3 +337,41 @@ export const GetScanImageParams = zod.object({
 });
 
 export const GetScanImageResponse = zod.unknown();
+
+/**
+ * Returns current Open-Meteo conditions for GPS coordinates without requiring an API key.
+ * @summary Get current field weather
+ */
+export const getWeatherQueryLatitudeMin = -90;
+export const getWeatherQueryLatitudeMax = 90;
+
+export const getWeatherQueryLongitudeMin = -180;
+export const getWeatherQueryLongitudeMax = 180;
+
+export const GetWeatherQueryParams = zod.object({
+  latitude: zod.coerce
+    .number()
+    .min(getWeatherQueryLatitudeMin)
+    .max(getWeatherQueryLatitudeMax),
+  longitude: zod.coerce
+    .number()
+    .min(getWeatherQueryLongitudeMin)
+    .max(getWeatherQueryLongitudeMax),
+});
+
+export const getWeatherResponseWeatherCodeMultipleOf = 1;
+
+export const GetWeatherResponse = zod.object({
+  latitude: zod.number(),
+  longitude: zod.number(),
+  temperatureCelsius: zod.number(),
+  relativeHumidityPercentage: zod.number(),
+  precipitationMm: zod.number(),
+  windSpeedKph: zod.number(),
+  weatherCode: zod.number().multipleOf(getWeatherResponseWeatherCodeMultipleOf),
+  isDay: zod.boolean(),
+  observedAt: zod.coerce.date(),
+  timezone: zod.string(),
+  source: zod.enum(["open-meteo"]),
+  freshness: zod.enum(["live", "cached"]),
+});

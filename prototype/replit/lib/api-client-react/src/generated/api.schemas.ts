@@ -66,6 +66,35 @@ export interface UploadScanImageInput {
   image: Blob;
 }
 
+export type WeatherSource = (typeof WeatherSource)[keyof typeof WeatherSource];
+
+export const WeatherSource = {
+  "open-meteo": "open-meteo",
+} as const;
+
+export type WeatherFreshness =
+  (typeof WeatherFreshness)[keyof typeof WeatherFreshness];
+
+export const WeatherFreshness = {
+  live: "live",
+  cached: "cached",
+} as const;
+
+export interface Weather {
+  latitude: number;
+  longitude: number;
+  temperatureCelsius: number;
+  relativeHumidityPercentage: number;
+  precipitationMm: number;
+  windSpeedKph: number;
+  weatherCode: number;
+  isDay: boolean;
+  observedAt: string;
+  timezone: string;
+  source: WeatherSource;
+  freshness: WeatherFreshness;
+}
+
 export type ScanStatus = (typeof ScanStatus)[keyof typeof ScanStatus];
 
 export const ScanStatus = {
@@ -95,3 +124,16 @@ export type ErrorResponseError = {
 export interface ErrorResponse {
   error: ErrorResponseError;
 }
+
+export type GetWeatherParams = {
+  /**
+   * @minimum -90
+   * @maximum 90
+   */
+  latitude: number;
+  /**
+   * @minimum -180
+   * @maximum 180
+   */
+  longitude: number;
+};
