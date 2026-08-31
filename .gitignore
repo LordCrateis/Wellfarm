@@ -34,6 +34,10 @@ data/raw/
 data/processed/
 data/private/
 *.sqlite3
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+data/uploads/
 
 # Editors and operating systems
 .idea/
