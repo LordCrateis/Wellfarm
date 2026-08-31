@@ -647,6 +647,7 @@ export function ScanJourney({
   const [step, setStep] = useState(1);
   const [crop, setCrop] = useState<Crop>("Rice");
   const [photo, setPhoto] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [locationState, setLocationState] = useState<
     "idle" | "loading" | "success" | "denied"
   >("idle");
@@ -666,6 +667,17 @@ export function ScanJourney({
     confidence: number;
     severity: Severity;
   } | null>(null);
+
+  useEffect(() => {
+    if (!photo) {
+      setPhotoPreview(null);
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(photo);
+    setPhotoPreview(previewUrl);
+    return () => URL.revokeObjectURL(previewUrl);
+  }, [photo]);
 
   const locate = async () => {
     setLocationState("loading");
@@ -764,9 +776,18 @@ export function ScanJourney({
         {step === 1 && (
           <Box>
             <div className="flex min-h-[270px] flex-col items-center justify-center border-2 border-dashed border-[hsl(var(--border))] bg-[hsl(40_24%_92%)] p-6 text-center">
-              <div className="grid h-14 w-14 place-items-center rounded-full bg-[hsl(var(--secondary))] text-[hsl(var(--primary))]">
-                <Upload size={23} />
-              </div>
+              {photoPreview ? (
+                <img
+                  src={photoPreview}
+                  alt="Selected affected crop preview"
+                  className="h-48 w-full max-w-md rounded-lg border border-[hsl(var(--border))] object-contain bg-[hsl(var(--card))]"
+                  data-testid="image-crop-preview"
+                />
+              ) : (
+                <div className="grid h-14 w-14 place-items-center rounded-full bg-[hsl(var(--secondary))] text-[hsl(var(--primary))]">
+                  <Upload size={23} />
+                </div>
+              )}
               <h2 className="mt-5 text-xl font-bold">
                 Upload one clear leaf or plant photo
               </h2>
@@ -857,6 +878,11 @@ export function ScanJourney({
                     {location?.label ?? "Detected area (approx.)"} · location
                     accuracy kept private
                   </div>
+                  {location?.attribution && (
+                    <div className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">
+                      {location.attribution}
+                    </div>
+                  )}
                 </div>
               )}
               {locationState === "denied" && (

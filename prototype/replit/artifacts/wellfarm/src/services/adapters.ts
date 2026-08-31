@@ -57,11 +57,45 @@ export function uploadCropImage(scanId: string, image: File): Promise<Scan> {
   return uploadScanImage(scanId, { image });
 }
 
-export const requestLocation = (): Promise<{
+export interface BrowserLocation {
   latitude: number;
   longitude: number;
   label: string;
-}> =>
+  attribution?: string;
+}
+
+interface ApproximateLocationResponse {
+  label: string;
+  source: "openstreetmap";
+}
+
+async function getLocationLabel(
+  latitude: number,
+  longitude: number,
+): Promise<Pick<BrowserLocation, "label" | "attribution">> {
+  try {
+    const query = new URLSearchParams({
+      latitude: String(latitude),
+      longitude: String(longitude),
+    });
+    const response = await fetch(`/api/location?${query}`);
+    if (!response.ok) throw new Error("location unavailable");
+
+    const location = (await response.json()) as ApproximateLocationResponse;
+    if (typeof location.label !== "string" || !location.label) {
+      throw new Error("invalid location");
+    }
+
+    return {
+      label: `${location.label} · approximate area`,
+      attribution: "Place data © OpenStreetMap contributors",
+    };
+  } catch {
+    return { label: "Detected area (approx.)" };
+  }
+}
+
+export const requestLocation = (): Promise<BrowserLocation> =>
   new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
       reject(new Error("unsupported"));
@@ -69,12 +103,14 @@ export const requestLocation = (): Promise<{
     }
 
     navigator.geolocation.getCurrentPosition(
-      ({ coords }) =>
+      async ({ coords }) => {
+        const place = await getLocationLabel(coords.latitude, coords.longitude);
         resolve({
           latitude: coords.latitude,
           longitude: coords.longitude,
-          label: "Detected area (approx.)",
-        }),
+          ...place,
+        });
+      },
       (error) =>
         reject(
           new Error(
@@ -89,7 +125,7 @@ export const requestLocation = (): Promise<{
     );
   });
 
-export const demoLocation = {
+export const demoLocation: BrowserLocation = {
   latitude: 20.4625,
   longitude: 85.883,
   label: "Cuttack district · demo location",
