@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { extname } from "node:path";
 import { Router, type IRouter, type RequestHandler } from "express";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import multer from "multer";
 import {
   CreateScanBody,
@@ -26,7 +26,8 @@ function decodeSymptoms(value: string | null): string[] | undefined {
 
   try {
     const parsed: unknown = JSON.parse(value);
-    return Array.isArray(parsed) && parsed.every((item) => typeof item === "string")
+    return Array.isArray(parsed) &&
+      parsed.every((item) => typeof item === "string")
       ? parsed
       : undefined;
   } catch {
@@ -53,7 +54,9 @@ function toResponse(scan: Scan) {
   };
 }
 
-function validationError(issues: Array<{ path: PropertyKey[]; message: string }>) {
+function validationError(
+  issues: Array<{ path: PropertyKey[]; message: string }>,
+) {
   return {
     error: {
       code: "INVALID_SCAN_DATA",
@@ -150,6 +153,23 @@ router.post("/scans", (req, res, next) => {
       .get();
 
     res.status(201).json(CreateScanResponse.parse(toResponse(scan)));
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/scans", (_req, res, next) => {
+  try {
+    const storedScans = db
+      .select()
+      .from(scans)
+      .orderBy(desc(scans.createdAt))
+      .limit(100)
+      .all();
+
+    res.json(
+      storedScans.map((scan) => CreateScanResponse.parse(toResponse(scan))),
+    );
   } catch (error) {
     next(error);
   }

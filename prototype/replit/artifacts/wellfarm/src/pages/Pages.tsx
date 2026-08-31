@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import type { Crop } from "@workspace/api-client-react";
+import type { Crop, Scan } from "@workspace/api-client-react";
 import { Link, useLocation, useParams } from "wouter";
 import {
   ArrowRight,
@@ -36,7 +36,6 @@ import {
   crops,
   districtSummaries,
   mapStates,
-  recentScans,
   referrals,
   report,
   retraining,
@@ -49,6 +48,9 @@ import {
   analyzeCropScan,
   createScanRecord,
   demoLocation,
+  getApproximateLocationLabel,
+  getScanRecord,
+  listScanRecords,
   requestLocation,
   uploadCropImage,
   weatherService,
@@ -162,6 +164,49 @@ const Box = ({
     {children}
   </section>
 );
+
+function formatScanDate(value: string): string {
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
+function scanSummary(scan: Scan): string {
+  if (scan.symptoms?.length) return scan.symptoms.join(", ");
+  return (
+    [scan.affectedPart, scan.growthStage].filter(Boolean).join(" · ") ||
+    "Crop details recorded"
+  );
+}
+
+function ScanStatusBadge({ status }: { status: Scan["status"] }) {
+  const labels: Record<Scan["status"], string> = {
+    pending: "Saved",
+    analyzing: "Analyzing",
+    completed: "Completed",
+    failed: "Needs retry",
+  };
+  const classes: Record<Scan["status"], string> = {
+    pending:
+      "border-[hsl(39_77%_55%)] bg-[hsl(39_77%_66%/_.18)] text-[hsl(26_44%_31%)]",
+    analyzing:
+      "border-[hsl(var(--primary))] bg-[hsl(var(--secondary))] text-[hsl(var(--primary))]",
+    completed:
+      "border-[hsl(112_22%_54%)] bg-[hsl(112_22%_81%)] text-[hsl(153_43%_23%)]",
+    failed:
+      "border-[hsl(4_48%_55%)] bg-[hsl(4_48%_44%/_.12)] text-[hsl(4_48%_36%)]",
+  };
+
+  return (
+    <span
+      className={`inline-flex rounded-md border px-2.5 py-1 text-[11px] font-bold uppercase tracking-[.08em] ${classes[status]}`}
+      data-testid={`status-scan-${status}`}
+    >
+      {labels[status]}
+    </span>
+  );
+}
 
 export function PublicHome({
   locale,
@@ -477,6 +522,9 @@ export function FarmerHome({
     ...weather,
     freshness: "demo",
   });
+  const [savedScans, setSavedScans] = useState<Scan[]>([]);
+  const [scansLoading, setScansLoading] = useState(true);
+  const [scansError, setScansError] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -484,6 +532,23 @@ export function FarmerHome({
       .getCurrentWeather(demoLocation.latitude, demoLocation.longitude)
       .then((nextWeather) => {
         if (active) setFieldWeather(nextWeather);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    listScanRecords()
+      .then((records) => {
+        if (active) setSavedScans(records);
+      })
+      .catch(() => {
+        if (active) setScansError(true);
+      })
+      .finally(() => {
+        if (active) setScansLoading(false);
       });
     return () => {
       active = false;
@@ -582,7 +647,26 @@ export function FarmerHome({
             {t.farmer.recent}
           </SectionLabel>
           <div className="divide-y divide-[hsl(var(--border))] border-y border-[hsl(var(--border))]">
-            {recentScans.map((scan) => (
+            {scansLoading && (
+              <div className="py-6 text-sm text-[hsl(var(--muted-foreground))]">
+                Loading your saved scans…
+              </div>
+            )}
+            {scansError && (
+              <div className="py-6 text-sm text-[hsl(4_48%_36%)]">
+                Scan history is unavailable. Check that the local API is
+                running.
+              </div>
+            )}
+            {!scansLoading && !scansError && savedScans.length === 0 && (
+              <div className="py-6">
+                <div className="font-bold">No scans saved yet</div>
+                <p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">
+                  Your first completed crop submission will appear here.
+                </p>
+              </div>
+            )}
+            {savedScans.slice(0, 5).map((scan) => (
               <Link
                 href={`/farmer/history/${scan.id}`}
                 key={scan.id}
@@ -595,14 +679,14 @@ export function FarmerHome({
                   </div>
                   <div className="min-w-0">
                     <div className="truncate text-sm font-bold">
-                      {scan.condition}
+                      {scan.crop} scan
                     </div>
                     <div className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">
-                      {scan.crop} · {scan.date} · {scan.id}
+                      {scanSummary(scan)} · {formatScanDate(scan.createdAt)}
                     </div>
                   </div>
                 </div>
-                <SeverityBadge severity={scan.severity} small />
+                <ScanStatusBadge status={scan.status} />
               </Link>
             ))}
           </div>
@@ -1252,6 +1336,208 @@ export function FarmerHistory({
   locale: LocaleKey;
   setLocale: (v: LocaleKey) => void;
 }) {
+  const { id } = useParams();
+  const [records, setRecords] = useState<Scan[]>([]);
+  const [selectedScan, setSelectedScan] = useState<Scan | null>(null);
+  const [locationLabel, setLocationLabel] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setLoadError(false);
+    setSelectedScan(null);
+
+    const request = id ? getScanRecord(id) : listScanRecords();
+    request
+      .then((result) => {
+        if (!active) return;
+        if (Array.isArray(result)) setRecords(result);
+        else setSelectedScan(result);
+      })
+      .catch(() => {
+        if (active) setLoadError(true);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [id]);
+
+  useEffect(() => {
+    let active = true;
+    setLocationLabel(null);
+    if (!selectedScan) return;
+
+    getApproximateLocationLabel(
+      selectedScan.latitude,
+      selectedScan.longitude,
+    ).then((location) => {
+      if (active) setLocationLabel(location.label);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [selectedScan]);
+
+  if (id) {
+    return (
+      <AppShell role="farmer" locale={locale} setLocale={setLocale}>
+        <PageHeader
+          eyebrow="Farmer fieldbook / saved scan"
+          title={selectedScan ? `${selectedScan.crop} scan` : "Saved scan"}
+        >
+          <Button
+            href="/farmer/history"
+            variant="outline"
+            testId="button-scan-detail-back"
+          >
+            Back to history
+          </Button>
+        </PageHeader>
+
+        {loading && (
+          <Box>
+            <p className="text-sm text-[hsl(var(--muted-foreground))]">
+              Loading saved scan…
+            </p>
+          </Box>
+        )}
+        {loadError && (
+          <Box>
+            <h2 className="font-bold">This scan could not be loaded</h2>
+            <p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">
+              The record may not exist, or the local API may not be running.
+            </p>
+          </Box>
+        )}
+        {selectedScan && (
+          <div className="grid gap-5 lg:grid-cols-[.9fr_1.1fr]">
+            <Box className="h-fit">
+              {selectedScan.imagePath ? (
+                <img
+                  src={selectedScan.imagePath}
+                  alt={`Uploaded ${selectedScan.crop} crop`}
+                  className="max-h-[520px] w-full rounded-lg bg-[hsl(var(--muted))] object-contain"
+                  data-testid="image-saved-scan"
+                />
+              ) : (
+                <div className="grid min-h-72 place-items-center border border-dashed border-[hsl(var(--border))] bg-[hsl(var(--muted)/_.35)] text-center">
+                  <div>
+                    <Leaf
+                      className="mx-auto text-[hsl(var(--primary))]"
+                      size={30}
+                    />
+                    <p className="mt-3 text-sm font-semibold">
+                      No image stored for this scan
+                    </p>
+                  </div>
+                </div>
+              )}
+            </Box>
+
+            <div className="space-y-5">
+              <Box>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <div className="font-mono text-[10px] uppercase tracking-[.14em] text-[hsl(var(--muted-foreground))]">
+                      Saved API record
+                    </div>
+                    <h2 className="mt-2 text-2xl font-extrabold">
+                      {selectedScan.crop}
+                    </h2>
+                    <p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">
+                      {selectedScan.id}
+                    </p>
+                  </div>
+                  <ScanStatusBadge status={selectedScan.status} />
+                </div>
+
+                <div className="mt-6 grid gap-4 border-y border-[hsl(var(--border))] py-5 sm:grid-cols-2">
+                  <Metric
+                    label="Submitted"
+                    value={formatScanDate(selectedScan.createdAt)}
+                  />
+                  <Metric
+                    label="Approximate area"
+                    value={locationLabel ?? "Resolving area…"}
+                  />
+                  <Metric
+                    label="Affected part"
+                    value={selectedScan.affectedPart ?? "Not provided"}
+                  />
+                  <Metric
+                    label="Growth stage"
+                    value={selectedScan.growthStage ?? "Not provided"}
+                  />
+                  <Metric
+                    label="Affected area"
+                    value={
+                      selectedScan.affectedAreaPercentage === undefined
+                        ? "Not provided"
+                        : `${selectedScan.affectedAreaPercentage}%`
+                    }
+                  />
+                  <Metric
+                    label="Nearby plants"
+                    value={
+                      selectedScan.nearbyPlantsAffected === undefined
+                        ? "Not sure"
+                        : selectedScan.nearbyPlantsAffected
+                          ? "Also affected"
+                          : "Not affected"
+                    }
+                  />
+                </div>
+
+                <div className="mt-5">
+                  <div className="text-xs font-bold uppercase tracking-wider">
+                    Visible symptoms
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-[hsl(var(--muted-foreground))]">
+                    {selectedScan.symptoms?.join(", ") || "None provided"}
+                  </p>
+                </div>
+                {selectedScan.notes && (
+                  <div className="mt-5">
+                    <div className="text-xs font-bold uppercase tracking-wider">
+                      Farmer notes
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-[hsl(var(--muted-foreground))]">
+                      {selectedScan.notes}
+                    </p>
+                  </div>
+                )}
+              </Box>
+
+              <Box className="bg-[hsl(39_77%_66%/_.12)]">
+                <div className="flex gap-3">
+                  <Info
+                    className="mt-0.5 shrink-0 text-[hsl(26_44%_35%)]"
+                    size={19}
+                  />
+                  <div>
+                    <h3 className="font-bold">Diagnosis not stored yet</h3>
+                    <p className="mt-1 text-sm leading-6 text-[hsl(var(--muted-foreground))]">
+                      This is the real farmer submission. Disease-model results
+                      will appear here after the free inference service is
+                      connected.
+                    </p>
+                  </div>
+                </div>
+              </Box>
+            </div>
+          </div>
+        )}
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell role="farmer" locale={locale} setLocale={setLocale}>
       <PageHeader
@@ -1264,62 +1550,90 @@ export function FarmerHistory({
         </Button>
       </PageHeader>
       <Box>
-        <div className="mb-5 flex flex-wrap gap-2">
-          <Button variant="outline" testId="button-history-filter">
-            All scans <Filter size={14} />
-          </Button>
-          <Button variant="quiet" testId="button-history-reviewed">
-            Reviewed
-          </Button>
-          <Button variant="quiet" testId="button-history-referred">
-            Referred
-          </Button>
+        <div className="mb-5 flex items-center justify-between gap-3">
+          <div>
+            <div className="font-bold">All saved scans</div>
+            <div className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">
+              Real records from the local Wellfarm API
+            </div>
+          </div>
+          {!loading && !loadError && (
+            <span className="font-mono text-xs text-[hsl(var(--muted-foreground))]">
+              {records.length} total
+            </span>
+          )}
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-left text-sm">
-            <thead className="border-y border-[hsl(var(--border))] font-mono text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))]">
-              <tr>
-                <th className="py-3 pr-4">Scan</th>
-                <th className="py-3 pr-4">Crop / indication</th>
-                <th className="py-3 pr-4">Date</th>
-                <th className="py-3 pr-4">Risk</th>
-                <th className="py-3 pr-4">Referral</th>
-                <th className="py-3">Record</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[hsl(var(--border))]">
-              {scans.slice(0, 12).map((scan) => (
-                <tr key={scan.id} className="hover:bg-[hsl(var(--muted)/_.35)]">
-                  <td className="py-4 pr-4 font-mono text-xs">{scan.id}</td>
-                  <td className="py-4 pr-4">
-                    <div className="font-semibold">{scan.crop}</div>
-                    <div className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">
-                      {scan.condition}
-                    </div>
-                  </td>
-                  <td className="py-4 pr-4 text-xs text-[hsl(var(--muted-foreground))]">
-                    {scan.date}
-                  </td>
-                  <td className="py-4 pr-4">
-                    <SeverityBadge severity={scan.severity} small />
-                  </td>
-                  <td className="py-4 pr-4 text-xs">
-                    {scan.referral === "None" ? "No referral" : scan.referral}
-                  </td>
-                  <td className="py-4">
-                    <Link
-                      href={`/farmer/history/${scan.id}`}
-                      className="font-bold text-[hsl(var(--primary))]"
-                      data-testid={`link-history-detail-${scan.id}`}
-                    >
-                      Open <ArrowUpRight size={14} className="inline" />
-                    </Link>
-                  </td>
+
+        {loading && (
+          <div className="border-y border-[hsl(var(--border))] py-8 text-sm text-[hsl(var(--muted-foreground))]">
+            Loading scan history…
+          </div>
+        )}
+        {loadError && (
+          <div className="border-y border-[hsl(var(--border))] py-8 text-sm text-[hsl(4_48%_36%)]">
+            Scan history is unavailable. Check that the local API is running.
+          </div>
+        )}
+        {!loading && !loadError && records.length === 0 && (
+          <div className="border-y border-[hsl(var(--border))] py-8">
+            <div className="font-bold">No saved scans yet</div>
+            <p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">
+              Complete a crop scan and it will appear here automatically.
+            </p>
+          </div>
+        )}
+        {!loading && !loadError && records.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] text-left text-sm">
+              <thead className="border-y border-[hsl(var(--border))] font-mono text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))]">
+                <tr>
+                  <th className="py-3 pr-4">Scan</th>
+                  <th className="py-3 pr-4">Crop / details</th>
+                  <th className="py-3 pr-4">Date</th>
+                  <th className="py-3 pr-4">Status</th>
+                  <th className="py-3 pr-4">Image</th>
+                  <th className="py-3">Record</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-[hsl(var(--border))]">
+                {records.map((scan) => (
+                  <tr
+                    key={scan.id}
+                    className="hover:bg-[hsl(var(--muted)/_.35)]"
+                  >
+                    <td className="py-4 pr-4 font-mono text-xs">
+                      {scan.id.slice(0, 8)}…
+                    </td>
+                    <td className="py-4 pr-4">
+                      <div className="font-semibold">{scan.crop}</div>
+                      <div className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">
+                        {scanSummary(scan)}
+                      </div>
+                    </td>
+                    <td className="py-4 pr-4 text-xs text-[hsl(var(--muted-foreground))]">
+                      {formatScanDate(scan.createdAt)}
+                    </td>
+                    <td className="py-4 pr-4">
+                      <ScanStatusBadge status={scan.status} />
+                    </td>
+                    <td className="py-4 pr-4 text-xs">
+                      {scan.imagePath ? "Uploaded" : "Missing"}
+                    </td>
+                    <td className="py-4">
+                      <Link
+                        href={`/farmer/history/${scan.id}`}
+                        className="font-bold text-[hsl(var(--primary))]"
+                        data-testid={`link-history-detail-${scan.id}`}
+                      >
+                        Open <ArrowUpRight size={14} className="inline" />
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Box>
     </AppShell>
   );

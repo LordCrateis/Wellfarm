@@ -1,5 +1,6 @@
 import {
   createScan,
+  getScan,
   getWeather,
   uploadScanImage,
   type CreateScanInput,
@@ -53,6 +54,19 @@ export function createScanRecord(input: CreateScanInput): Promise<Scan> {
   return createScan(input);
 }
 
+export async function listScanRecords(): Promise<Scan[]> {
+  const response = await fetch("/api/scans");
+  if (!response.ok) throw new Error("scan history unavailable");
+
+  const records: unknown = await response.json();
+  if (!Array.isArray(records)) throw new Error("invalid scan history");
+  return records as Scan[];
+}
+
+export function getScanRecord(scanId: string): Promise<Scan> {
+  return getScan(scanId);
+}
+
 export function uploadCropImage(scanId: string, image: File): Promise<Scan> {
   return uploadScanImage(scanId, { image });
 }
@@ -69,7 +83,7 @@ interface ApproximateLocationResponse {
   source: "openstreetmap";
 }
 
-async function getLocationLabel(
+export async function getApproximateLocationLabel(
   latitude: number,
   longitude: number,
 ): Promise<Pick<BrowserLocation, "label" | "attribution">> {
@@ -104,7 +118,10 @@ export const requestLocation = (): Promise<BrowserLocation> =>
 
     navigator.geolocation.getCurrentPosition(
       async ({ coords }) => {
-        const place = await getLocationLabel(coords.latitude, coords.longitude);
+        const place = await getApproximateLocationLabel(
+          coords.latitude,
+          coords.longitude,
+        );
         resolve({
           latitude: coords.latitude,
           longitude: coords.longitude,
