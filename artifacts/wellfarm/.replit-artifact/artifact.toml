@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Wellfarm"
+description = "A frontend-first agricultural intelligence prototype connecting farmer crop scans, localized advisories, regional outbreak monitoring, laboratory routing, field verification, and collective learning for a Smart India Hackathon demonstration."
+version = "1.0.0"
+id = "artifacts/wellfarm"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19106
+
+[services.development]
+run = "pnpm --filter @workspace/wellfarm run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/wellfarm", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/wellfarm/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19106"
+BASE_PATH = "/"
