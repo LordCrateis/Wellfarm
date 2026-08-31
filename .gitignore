@@ -45,4 +45,4 @@ Thumbs.db
 *.log
 tmp/
 .cache/
-
+.pnpm-store/

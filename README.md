@@ -68,6 +68,7 @@ services/         API, vision, advisory, and collective intelligence boundaries
 packages/         Contracts shared between applications and services
 data/             Schemas and non-sensitive synthetic fixtures
 infrastructure/   Future deployment definitions and operational guidance
+prototype/        Imported Replit prototype and integration notes
 docs/             Requirements, architecture, decisions, safety, and roadmap
 ```
 
