@@ -24,5 +24,9 @@ export function closeDatabase(): void {
   }
 }
 
-export { databasePath } from "./config";
+export {
+  databasePath,
+  environmentBaseDirectory,
+  resolveEnvironmentPath,
+} from "./config";
 export * from "./schema";

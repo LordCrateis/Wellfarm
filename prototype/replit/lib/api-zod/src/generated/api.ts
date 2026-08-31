@@ -238,3 +238,102 @@ export const GetScanResponse = zod
       updatedAt: zod.coerce.date(),
     }),
   );
+
+/**
+ * Stores one genuine JPG or PNG image, up to 10 MB, for an existing scan.
+ * @summary Upload a crop image
+ */
+
+export const UploadScanImageParams = zod.object({
+  scanId: zod.coerce.string().min(1),
+});
+
+export const UploadScanImageBody = zod.object({
+  image: zod.instanceof(File),
+});
+
+export const uploadScanImageResponseOneSymptomsItemMax = 200;
+
+export const uploadScanImageResponseOneSymptomsMax = 20;
+
+export const uploadScanImageResponseOneAffectedPartMax = 100;
+
+export const uploadScanImageResponseOneGrowthStageMax = 100;
+
+export const uploadScanImageResponseOneAffectedAreaPercentageMin = 0;
+export const uploadScanImageResponseOneAffectedAreaPercentageMax = 100;
+export const uploadScanImageResponseOneAffectedAreaPercentageMultipleOf = 1;
+
+export const uploadScanImageResponseOneNotesMax = 2000;
+
+export const uploadScanImageResponseOneLatitudeMin = -90;
+export const uploadScanImageResponseOneLatitudeMax = 90;
+
+export const uploadScanImageResponseOneLongitudeMin = -180;
+export const uploadScanImageResponseOneLongitudeMax = 180;
+
+export const UploadScanImageResponse = zod
+  .object({
+    crop: zod.enum([
+      "Rice",
+      "Wheat",
+      "Maize",
+      "Cotton",
+      "Sugarcane",
+      "Soybean",
+      "Groundnut",
+      "Tomato",
+      "Potato",
+      "Onion",
+    ]),
+    symptoms: zod
+      .array(zod.string().min(1).max(uploadScanImageResponseOneSymptomsItemMax))
+      .max(uploadScanImageResponseOneSymptomsMax)
+      .optional(),
+    affectedPart: zod
+      .string()
+      .min(1)
+      .max(uploadScanImageResponseOneAffectedPartMax)
+      .optional(),
+    growthStage: zod
+      .string()
+      .min(1)
+      .max(uploadScanImageResponseOneGrowthStageMax)
+      .optional(),
+    affectedAreaPercentage: zod
+      .number()
+      .min(uploadScanImageResponseOneAffectedAreaPercentageMin)
+      .max(uploadScanImageResponseOneAffectedAreaPercentageMax)
+      .multipleOf(uploadScanImageResponseOneAffectedAreaPercentageMultipleOf)
+      .optional(),
+    nearbyPlantsAffected: zod.boolean().optional(),
+    notes: zod.string().max(uploadScanImageResponseOneNotesMax).optional(),
+    latitude: zod
+      .number()
+      .min(uploadScanImageResponseOneLatitudeMin)
+      .max(uploadScanImageResponseOneLatitudeMax),
+    longitude: zod
+      .number()
+      .min(uploadScanImageResponseOneLongitudeMin)
+      .max(uploadScanImageResponseOneLongitudeMax),
+  })
+  .and(
+    zod.object({
+      id: zod.string(),
+      status: zod.enum(["pending", "analyzing", "completed", "failed"]),
+      imagePath: zod.string().nullable(),
+      createdAt: zod.coerce.date(),
+      updatedAt: zod.coerce.date(),
+    }),
+  );
+
+/**
+ * Streams the locally stored image for an existing scan.
+ * @summary Get a crop image
+ */
+
+export const GetScanImageParams = zod.object({
+  scanId: zod.coerce.string().min(1),
+});
+
+export const GetScanImageResponse = zod.unknown();

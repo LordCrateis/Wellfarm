@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { Router, type IRouter } from "express";
+import { extname } from "node:path";
+import { Router, type IRouter, type RequestHandler } from "express";
 import { eq } from "drizzle-orm";
+import multer from "multer";
 import {
   CreateScanBody,
   CreateScanResponse,
@@ -8,6 +10,12 @@ import {
   GetScanResponse,
 } from "@workspace/api-zod";
 import { db, scans, type Scan } from "@workspace/db";
+import {
+  imageUpload,
+  isSupportedImage,
+  openStoredImage,
+  removeStoredImage,
+} from "../lib/uploads";
 
 const router: IRouter = Router();
 
@@ -38,7 +46,7 @@ function toResponse(scan: Scan) {
     notes: scan.notes ?? undefined,
     latitude: scan.latitude,
     longitude: scan.longitude,
-    imagePath: scan.imagePath,
+    imagePath: scan.imagePath ? `/api/scans/${scan.id}/image` : null,
     status: scan.status,
     createdAt: scan.createdAt,
     updatedAt: scan.updatedAt,
@@ -57,6 +65,57 @@ function validationError(issues: Array<{ path: PropertyKey[]; message: string }>
     },
   };
 }
+
+function findScan(scanId: string): Scan | undefined {
+  return db.select().from(scans).where(eq(scans.id, scanId)).get();
+}
+
+const requireExistingScan: RequestHandler = (req, res, next) => {
+  const parsed = GetScanParams.safeParse(req.params);
+
+  if (!parsed.success) {
+    res.status(400).json(validationError(parsed.error.issues));
+    return;
+  }
+
+  const scan = findScan(parsed.data.scanId);
+  if (!scan) {
+    res.status(404).json({
+      error: {
+        code: "SCAN_NOT_FOUND",
+        message: "No scan exists with that identifier.",
+      },
+    });
+    return;
+  }
+
+  res.locals.scan = scan;
+  next();
+};
+
+const uploadOneImage: RequestHandler = (req, res, next) => {
+  imageUpload.single("image")(req, res, (error: unknown) => {
+    if (error instanceof multer.MulterError) {
+      const tooLarge = error.code === "LIMIT_FILE_SIZE";
+      res.status(tooLarge ? 413 : 400).json({
+        error: {
+          code: tooLarge ? "IMAGE_TOO_LARGE" : "INVALID_IMAGE_UPLOAD",
+          message: tooLarge
+            ? "The crop image must be 10 MB or smaller."
+            : "The crop image upload is invalid.",
+        },
+      });
+      return;
+    }
+
+    if (error) {
+      next(error);
+      return;
+    }
+
+    next();
+  });
+};
 
 router.post("/scans", (req, res, next) => {
   const parsed = CreateScanBody.safeParse(req.body);
@@ -105,11 +164,7 @@ router.get("/scans/:scanId", (req, res, next) => {
   }
 
   try {
-    const scan = db
-      .select()
-      .from(scans)
-      .where(eq(scans.id, parsed.data.scanId))
-      .get();
+    const scan = findScan(parsed.data.scanId);
 
     if (!scan) {
       res.status(404).json({
@@ -125,6 +180,85 @@ router.get("/scans/:scanId", (req, res, next) => {
   } catch (error) {
     next(error);
   }
+});
+
+router.post(
+  "/scans/:scanId/image",
+  requireExistingScan,
+  uploadOneImage,
+  (req, res, next) => {
+    const file = req.file;
+    const existingScan = res.locals.scan as Scan;
+
+    if (!file) {
+      res.status(415).json({
+        error: {
+          code: "UNSUPPORTED_IMAGE",
+          message: "Attach one genuine JPG or PNG file in the image field.",
+        },
+      });
+      return;
+    }
+
+    try {
+      if (!isSupportedImage(file.path, file.mimetype)) {
+        removeStoredImage(file.filename);
+        res.status(415).json({
+          error: {
+            code: "UNSUPPORTED_IMAGE",
+            message: "Attach one genuine JPG or PNG file in the image field.",
+          },
+        });
+        return;
+      }
+
+      const scan = db
+        .update(scans)
+        .set({ imagePath: file.filename, updatedAt: new Date() })
+        .where(eq(scans.id, existingScan.id))
+        .returning()
+        .get();
+
+      if (existingScan.imagePath && existingScan.imagePath !== file.filename) {
+        removeStoredImage(existingScan.imagePath);
+      }
+
+      res.json(CreateScanResponse.parse(toResponse(scan)));
+    } catch (error) {
+      removeStoredImage(file.filename);
+      next(error);
+    }
+  },
+);
+
+router.get("/scans/:scanId/image", requireExistingScan, (_req, res, next) => {
+  const scan = res.locals.scan as Scan;
+
+  if (!scan.imagePath) {
+    res.status(404).json({
+      error: {
+        code: "IMAGE_NOT_FOUND",
+        message: "This scan does not have an uploaded image.",
+      },
+    });
+    return;
+  }
+
+  const stream = openStoredImage(scan.imagePath);
+  if (!stream) {
+    res.status(404).json({
+      error: {
+        code: "IMAGE_NOT_FOUND",
+        message: "The stored scan image could not be found.",
+      },
+    });
+    return;
+  }
+
+  res.type(extname(scan.imagePath));
+  res.setHeader("Cache-Control", "private, max-age=3600");
+  stream.on("error", next);
+  stream.pipe(res);
 });
 
 export default router;

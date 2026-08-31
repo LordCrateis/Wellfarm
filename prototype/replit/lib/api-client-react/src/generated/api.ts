@@ -21,6 +21,7 @@ import type {
   ErrorResponse,
   HealthStatus,
   Scan,
+  UploadScanImageInput,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -283,6 +284,184 @@ export function useGetScan<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetScanQueryOptions(scanId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getUploadScanImageUrl = (scanId: string) => {
+  return `/api/scans/${scanId}/image`;
+};
+
+/**
+ * Stores one genuine JPG or PNG image, up to 10 MB, for an existing scan.
+ * @summary Upload a crop image
+ */
+export const uploadScanImage = async (
+  scanId: string,
+  uploadScanImageInput: UploadScanImageInput,
+  options?: Parameters<typeof customFetch>[1],
+): Promise<Scan> => {
+  const formData = new FormData();
+  formData.append(`image`, uploadScanImageInput.image);
+
+  return customFetch<Scan>(getUploadScanImageUrl(scanId), {
+    ...options,
+    method: "POST",
+    body: formData,
+  });
+};
+
+export const getUploadScanImageMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof uploadScanImage>>,
+    TError,
+    { scanId: string; data: BodyType<UploadScanImageInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof uploadScanImage>>,
+  TError,
+  { scanId: string; data: BodyType<UploadScanImageInput> },
+  TContext
+> => {
+  const mutationKey = ["uploadScanImage"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof uploadScanImage>>,
+    { scanId: string; data: BodyType<UploadScanImageInput> }
+  > = (props) => {
+    const { scanId, data } = props ?? {};
+
+    return uploadScanImage(scanId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UploadScanImageMutationResult = NonNullable<
+  Awaited<ReturnType<typeof uploadScanImage>>
+>;
+export type UploadScanImageMutationBody = BodyType<UploadScanImageInput>;
+export type UploadScanImageMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Upload a crop image
+ */
+export const useUploadScanImage = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof uploadScanImage>>,
+    TError,
+    { scanId: string; data: BodyType<UploadScanImageInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof uploadScanImage>>,
+  TError,
+  { scanId: string; data: BodyType<UploadScanImageInput> },
+  TContext
+> => {
+  return useMutation(getUploadScanImageMutationOptions(options));
+};
+
+export const getGetScanImageUrl = (scanId: string) => {
+  return `/api/scans/${scanId}/image`;
+};
+
+/**
+ * Streams the locally stored image for an existing scan.
+ * @summary Get a crop image
+ */
+export const getScanImage = async (
+  scanId: string,
+  options?: Parameters<typeof customFetch>[1],
+): Promise<Blob> => {
+  return customFetch<Blob>(getGetScanImageUrl(scanId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetScanImageQueryKey = (scanId: string) => {
+  return [`/api/scans/${scanId}/image`] as const;
+};
+
+export const getGetScanImageQueryOptions = <
+  TData = Awaited<ReturnType<typeof getScanImage>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  scanId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getScanImage>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetScanImageQueryKey(scanId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getScanImage>>> = ({
+    signal,
+  }) => getScanImage(scanId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: scanId !== null && scanId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getScanImage>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetScanImageQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getScanImage>>
+>;
+export type GetScanImageQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get a crop image
+ */
+
+export function useGetScanImage<
+  TData = Awaited<ReturnType<typeof getScanImage>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  scanId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getScanImage>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetScanImageQueryOptions(scanId, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

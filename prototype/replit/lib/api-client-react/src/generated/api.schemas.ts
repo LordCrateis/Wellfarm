@@ -62,6 +62,10 @@ export interface CreateScanInput {
   longitude: number;
 }
 
+export interface UploadScanImageInput {
+  image: Blob;
+}
+
 export type ScanStatus = (typeof ScanStatus)[keyof typeof ScanStatus];
 
 export const ScanStatus = {

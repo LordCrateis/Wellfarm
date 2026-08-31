@@ -5,42 +5,42 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { Crop } from './crop';
+import type { Crop } from "./crop";
 
 export interface CreateScanInput {
   crop: Crop;
   /**
-     * @maxItems 20
-     * @items.minLength 1
-     * @items.maxLength 200
-     */
+   * @maxItems 20
+   * @items.minLength 1
+   * @items.maxLength 200
+   */
   symptoms?: string[];
   /**
-     * @minLength 1
-     * @maxLength 100
-     */
+   * @minLength 1
+   * @maxLength 100
+   */
   affectedPart?: string;
   /**
-     * @minLength 1
-     * @maxLength 100
-     */
+   * @minLength 1
+   * @maxLength 100
+   */
   growthStage?: string;
   /**
-     * @minimum 0
-     * @maximum 100
-     */
+   * @minimum 0
+   * @maximum 100
+   */
   affectedAreaPercentage?: number;
   nearbyPlantsAffected?: boolean;
   /** @maxLength 2000 */
   notes?: string;
   /**
-     * @minimum -90
-     * @maximum 90
-     */
+   * @minimum -90
+   * @maximum 90
+   */
   latitude: number;
   /**
-     * @minimum -180
-     * @maximum 180
-     */
+   * @minimum -180
+   * @maximum 180
+   */
   longitude: number;
 }

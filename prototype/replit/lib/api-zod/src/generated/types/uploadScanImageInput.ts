@@ -5,8 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { ErrorResponseError } from "./errorResponseError";
 
-export interface ErrorResponse {
-  error: ErrorResponseError;
+export interface UploadScanImageInput {
+  image: Blob;
 }

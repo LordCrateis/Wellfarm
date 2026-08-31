@@ -6,18 +6,17 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type Crop = typeof Crop[keyof typeof Crop];
-
+export type Crop = (typeof Crop)[keyof typeof Crop];
 
 export const Crop = {
-  Rice: 'Rice',
-  Wheat: 'Wheat',
-  Maize: 'Maize',
-  Cotton: 'Cotton',
-  Sugarcane: 'Sugarcane',
-  Soybean: 'Soybean',
-  Groundnut: 'Groundnut',
-  Tomato: 'Tomato',
-  Potato: 'Potato',
-  Onion: 'Onion',
+  Rice: "Rice",
+  Wheat: "Wheat",
+  Maize: "Maize",
+  Cotton: "Cotton",
+  Sugarcane: "Sugarcane",
+  Soybean: "Soybean",
+  Groundnut: "Groundnut",
+  Tomato: "Tomato",
+  Potato: "Potato",
+  Onion: "Onion",
 } as const;

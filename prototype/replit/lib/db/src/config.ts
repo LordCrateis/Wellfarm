@@ -28,10 +28,16 @@ if (!process.env.DATABASE_PATH && environmentFile) {
 }
 
 const configuredPath = process.env.DATABASE_PATH ?? "./data/wellfarm-demo.sqlite";
-const baseDirectory = environmentFile ? dirname(environmentFile) : process.cwd();
+export const environmentBaseDirectory = environmentFile
+  ? dirname(environmentFile)
+  : process.cwd();
 
-export const databasePath = isAbsolute(configuredPath)
-  ? configuredPath
-  : resolve(baseDirectory, configuredPath);
+export function resolveEnvironmentPath(configuredPath: string): string {
+  return isAbsolute(configuredPath)
+    ? configuredPath
+    : resolve(environmentBaseDirectory, configuredPath);
+}
+
+export const databasePath = resolveEnvironmentPath(configuredPath);
 
 mkdirSync(dirname(databasePath), { recursive: true });

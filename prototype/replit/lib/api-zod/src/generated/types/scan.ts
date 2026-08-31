@@ -5,14 +5,14 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { CreateScanInput } from './createScanInput';
-import type { ScanStatus } from './scanStatus';
+import type { CreateScanInput } from "./createScanInput";
+import type { ScanStatus } from "./scanStatus";
 
-export type Scan = CreateScanInput & ({
+export type Scan = CreateScanInput & {
   id: string;
   status: ScanStatus;
   /** @nullable */
   imagePath: string | null;
   createdAt: Date;
   updatedAt: Date;
-});
+};

@@ -77,6 +77,86 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /scans/{scanId}/image:
+    post:
+      operationId: uploadScanImage
+      tags: [scans]
+      summary: Upload a crop image
+      description: Stores one genuine JPG or PNG image, up to 10 MB, for an existing scan.
+      parameters:
+        - name: scanId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/UploadScanImageInput"
+      responses:
+        "200":
+          description: Image stored and scan updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Scan"
+        "400":
+          description: Invalid multipart upload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Scan not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "413":
+          description: Image exceeds 10 MB
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "415":
+          description: Image is not a genuine JPG or PNG file
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    get:
+      operationId: getScanImage
+      tags: [scans]
+      summary: Get a crop image
+      description: Streams the locally stored image for an existing scan.
+      parameters:
+        - name: scanId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: Stored crop image
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Scan or image not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
     HealthStatus:
@@ -142,6 +222,14 @@ components:
         - crop
         - latitude
         - longitude
+    UploadScanImageInput:
+      type: object
+      properties:
+        image:
+          type: string
+          format: binary
+      required:
+        - image
     Scan:
       allOf:
         - $ref: "#/components/schemas/CreateScanInput"

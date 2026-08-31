@@ -5,7 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { ErrorResponseErrorDetailsItem } from './errorResponseErrorDetailsItem';
+import type { ErrorResponseErrorDetailsItem } from "./errorResponseErrorDetailsItem";
 
 export type ErrorResponseError = {
   code: string;

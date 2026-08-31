@@ -6,12 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type ScanStatus = typeof ScanStatus[keyof typeof ScanStatus];
-
+export type ScanStatus = (typeof ScanStatus)[keyof typeof ScanStatus];
 
 export const ScanStatus = {
-  pending: 'pending',
-  analyzing: 'analyzing',
-  completed: 'completed',
-  failed: 'failed',
+  pending: "pending",
+  analyzing: "analyzing",
+  completed: "completed",
+  failed: "failed",
 } as const;

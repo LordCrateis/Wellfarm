@@ -6,11 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export * from './createScanInput';
-export * from './crop';
-export * from './errorResponse';
-export * from './errorResponseError';
-export * from './errorResponseErrorDetailsItem';
-export * from './healthStatus';
-export * from './scan';
-export * from './scanStatus';
+export * from "./createScanInput";
+export * from "./crop";
+export * from "./errorResponse";
+export * from "./errorResponseError";
+export * from "./errorResponseErrorDetailsItem";
+export * from "./healthStatus";
+export * from "./scan";
+export * from "./scanStatus";
+export * from "./uploadScanImageInput";
