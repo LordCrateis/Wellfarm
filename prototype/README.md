@@ -45,6 +45,14 @@ corepack pnpm install --frozen-lockfile
 corepack pnpm run typecheck
 ```
 
+To run the Wellfarm frontend and API together, execute this from the repository root:
+
+```powershell
+npm run dev
+```
+
+Open `http://localhost:5173`. The launcher builds and starts the API on port 8000, starts Vite on port 5173, and proxies browser requests under `/api`. Press `Ctrl+C` to stop both processes.
+
 The Replit Vite configuration expects `PORT` and `BASE_PATH`. Production builds should set `NODE_ENV=production`, `PORT=5173`, and `BASE_PATH=/`.
 
 ## Secrets
