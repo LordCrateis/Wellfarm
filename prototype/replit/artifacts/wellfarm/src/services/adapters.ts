@@ -1,28 +1,111 @@
+import {
+  createScan,
+  getWeather,
+  uploadScanImage,
+  type CreateScanInput,
+  type Scan,
+} from "@workspace/api-client-react";
 import { weather } from "@/data/mock";
 
-export interface WeatherAdapter { getCurrentWeather: (latitude: number, longitude: number) => Promise<typeof weather>; }
-const demoWeather: WeatherAdapter = { getCurrentWeather: async () => weather };
-export const weatherService: WeatherAdapter = {
-  async getCurrentWeather(latitude, longitude) {
+export interface DisplayWeather {
+  location: string;
+  temperature: string;
+  humidity: string;
+  rain: string;
+  wind: string;
+  source: string;
+  updated: string;
+  freshness: "live" | "cached" | "demo";
+}
+
+const demoWeather: DisplayWeather = {
+  ...weather,
+  freshness: "demo",
+};
+
+export const weatherService = {
+  async getCurrentWeather(
+    latitude: number,
+    longitude: number,
+  ): Promise<DisplayWeather> {
     try {
-      if (!navigator.onLine) return demoWeather.getCurrentWeather(latitude, longitude);
-      const response = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m`, { signal: AbortSignal.timeout(2200) });
-      if (!response.ok) throw new Error("weather unavailable");
-      const current = (await response.json()).current;
-      return { location: "Detected area (approx.)", temperature: `${Math.round(current.temperature_2m)}°C`, humidity: `${current.relative_humidity_2m}%`, rain: `${current.precipitation} mm`, wind: `${Math.round(current.wind_speed_10m)} km/h`, source: "Live weather", updated: "Just now" };
-    } catch { return demoWeather.getCurrentWeather(latitude, longitude); }
+      const current = await getWeather({ latitude, longitude });
+      return {
+        location: "Detected area (approx.)",
+        temperature: `${Math.round(current.temperatureCelsius)}°C`,
+        humidity: `${Math.round(current.relativeHumidityPercentage)}%`,
+        rain: `${current.precipitationMm} mm`,
+        wind: `${Math.round(current.windSpeedKph)} km/h`,
+        source: "Open-Meteo",
+        updated: new Date(current.observedAt).toLocaleString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        freshness: current.freshness,
+      };
+    } catch {
+      return demoWeather;
+    }
   },
 };
-export const requestLocation = (): Promise<{ latitude: number; longitude: number; label: string }> => new Promise((resolve, reject) => {
-  if (!navigator.geolocation) return reject(new Error("unsupported"));
-  navigator.geolocation.getCurrentPosition(
-    ({ coords }) => resolve({ latitude: coords.latitude, longitude: coords.longitude, label: "Detected area (approx.)" }),
-    (error) => reject(new Error(error.code === 1 ? "denied" : error.code === 2 ? "unavailable" : "timeout")),
-    { enableHighAccuracy: false, timeout: 5000, maximumAge: 300000 },
-  );
-});
-export const demoLocation = { latitude: 20.4625, longitude: 85.883, label: "Cuttack district · demo location" };
+
+export function createScanRecord(input: CreateScanInput): Promise<Scan> {
+  return createScan(input);
+}
+
+export function uploadCropImage(scanId: string, image: File): Promise<Scan> {
+  return uploadScanImage(scanId, { image });
+}
+
+export const requestLocation = (): Promise<{
+  latitude: number;
+  longitude: number;
+  label: string;
+}> =>
+  new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error("unsupported"));
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) =>
+        resolve({
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+          label: "Detected area (approx.)",
+        }),
+      (error) =>
+        reject(
+          new Error(
+            error.code === 1
+              ? "denied"
+              : error.code === 2
+                ? "unavailable"
+                : "timeout",
+          ),
+        ),
+      { enableHighAccuracy: false, timeout: 5000, maximumAge: 300000 },
+    );
+  });
+
+export const demoLocation = {
+  latitude: 20.4625,
+  longitude: 85.883,
+  label: "Cuttack district · demo location",
+};
+
 export const analyzeCropScan = async (crop: string) => {
   await new Promise((resolve) => setTimeout(resolve, 500));
-  return crop === "Rice" ? { condition: "Rice bacterial leaf blight", confidence: 0.84, severity: "moderate" as const } : { condition: "Early visual signal — expert review advised", confidence: 0.68, severity: "low" as const };
+  return crop === "Rice"
+    ? {
+        condition: "Rice bacterial leaf blight",
+        confidence: 0.84,
+        severity: "moderate" as const,
+      }
+    : {
+        condition: "Early visual signal — expert review advised",
+        confidence: 0.68,
+        severity: "low" as const,
+      };
 };
