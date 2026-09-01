@@ -20,10 +20,10 @@
     "observed_at": { "type": "string", "format": "date-time" },
     "risk_level": { "enum": ["low", "moderate", "high"] },
     "data_source": {
-      "enum": ["field", "laboratory", "public_dataset", "simulated"]
+      "enum": ["field", "public_dataset", "sample", "model"]
     },
     "model_version": { "type": ["string", "null"] },
-    "verified": { "type": "boolean", "default": false }
+    "reviewed_by_user": { "type": "boolean", "default": false }
   },
   "additionalProperties": false
 }

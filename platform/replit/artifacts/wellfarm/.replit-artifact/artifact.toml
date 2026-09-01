@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Wellfarm"
+description = "A portfolio crop-health application combining farmer scans, explainable visual indications, live weather context, local history, and privacy-aware regional insights."
+version = "1.0.0"
+id = "artifacts/wellfarm"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19106
+
+[services.development]
+run = "pnpm --filter @workspace/wellfarm run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/wellfarm", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/wellfarm/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19106"
+BASE_PATH = "/"

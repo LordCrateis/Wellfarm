@@ -10,11 +10,11 @@ The vision service preprocesses crop images and returns structured candidate lab
 - Image-quality flags
 - Out-of-distribution or unsupported-image indication
 
-## Prototype constraints
+## Model constraints
 
 - Limit the label set to classes with adequate licensed examples.
 - Split training and evaluation data by source to reduce leakage.
-- Show top candidates and uncertainty in the demo.
+- Show top candidates and uncertainty in the product.
 - Save evaluation metrics and confusion matrices with each candidate model.
 - Keep large weights outside Git; document how to retrieve them.
 

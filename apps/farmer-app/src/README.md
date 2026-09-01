@@ -10,7 +10,7 @@ features/
   scan/
   diagnosis/
   advice/
-  referrals/
+  history/
   settings/
 lib/
   api/
@@ -19,4 +19,3 @@ lib/
 ```
 
 Keep network contracts in `packages/contracts` rather than duplicating response types inside the app.
-

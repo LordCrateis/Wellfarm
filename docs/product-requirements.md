@@ -1,84 +1,85 @@
-# Wellfarm Product Requirements
+# Product Requirements — Wellfarm
 
-## Project context
+## Product definition
 
-- **Problem statement:** SIH26131
-- **Organization:** Government of Maharashtra — Maharashtra State Innovation Society
-- **Category:** Software
-- **Theme:** Agriculture, FoodTech & Rural Development
-- **Current stage:** Smart India Hackathon Round 1 — idea and architecture proposal
+- **Name:** Wellfarm
+- **Type:** Open portfolio project
+- **Primary surface:** Responsive web application
+- **Companion surface:** Regional insights within the same site
+- **Owner:** Shivam Tamboli
 
-## Problem
+Wellfarm helps a user document visible crop symptoms, receive an explainable image-based indication, add live weather context, and follow changes through a private fieldbook. A separate insights area visualizes aggregate patterns from clearly identified sample or local data.
 
-Farmers often discover diseases and pest infestations after visible crop damage. Limited agricultural-extension capacity can make diagnosis late, inconsistent, and disconnected from nearby outbreaks. The result can be incorrect treatment, excessive pesticide use, increased cultivation costs, residue risk, yield loss, and weak regional visibility for government teams.
+## Product principles
 
-## Proposed solution
+1. **Useful without pretending certainty.** Results are ranked indications, not definitive diagnoses.
+2. **Privacy by default.** Exact coordinates are kept out of regional views.
+3. **No hidden external workflow.** The application never sends cases to laboratories, officials, companies, or third parties.
+4. **Evidence before advice.** Guidance is generated from structured model and weather evidence with explicit limitations.
+5. **Accessible across India.** The interface supports major Indian languages and mobile layouts without requiring audio features.
 
-Wellfarm is a farmer- and official-facing platform that connects individual crop scans to regional intelligence. Farmers photograph symptoms and receive simple, localized guidance. Anonymized reports are grouped geographically, correlated with weather, and summarized for officials. Moderate- and high-risk cases can be routed to nearby laboratories for confirmation, creating a feedback loop between farmers, officials, and labs.
+## Primary user journeys
 
-## Users
+### Crop scan
 
-### Farmers
+1. Upload or photograph an affected plant.
+2. Grant approximate location permission or continue without it.
+3. Choose the crop, affected plant part, growth stage, and visible symptoms.
+4. Receive ranked candidate conditions, confidence, image-quality warnings, and weather context.
+5. Save the result to the personal fieldbook.
 
-- Submit crop photos and basic field context.
-- Receive probable disease or pest classifications.
-- Read or listen to advisories in a regional language.
-- Contribute scans to an anonymized community dataset.
+### Fieldbook
 
-### Agriculture officials
+- Review previous scans and images.
+- Compare conditions, confidence, weather, and dates.
+- Repeat a scan when symptoms change.
+- Export or delete personal records locally.
 
-- View state- and district-level severity on a map.
-- Inspect crop, issue, report volume, and severity summaries.
-- Receive data-backed recommended actions.
-- Generate monthly reports and plan field surveys.
+### Regional insights
 
-### Diagnostic laboratories and extension teams
+- Explore state and district crop-health patterns from sample or locally aggregated records.
+- Filter by crop, condition, severity, and time.
+- See the evidence behind severity calculations.
+- Never expose exact farm coordinates or claim an official surveillance feed.
 
-- Receive geographically appropriate moderate- and high-risk referrals.
-- Record field or laboratory findings in the same system.
-- Feed verified outcomes back into future model improvement.
+## Supported crop direction
 
-## Product capabilities
+Rice, wheat, maize, cotton, sugarcane, soybean, groundnut, tomato, potato, and onion remain the target crop set. A crop is enabled in the classifier only when licensed, labeled, and sufficiently representative training data are available.
 
-1. **Photo diagnosis:** a limited computer-vision model identifies supported crop diseases and pests.
-2. **Localized advice:** an LLM converts structured findings into plain-language guidance for farmers and officials.
-3. **Regional aggregation:** anonymized scans form district or local clusters.
-4. **Incremental learning design:** unchanged records are fingerprinted so scheduled retraining avoids redundant work.
-5. **Weather correlation:** clustering or anomaly detection surfaces weather conditions that precede outbreaks.
-6. **Solutions cache:** validated weather-pattern, outcome, and advisory chains can be reused before full inference.
-7. **Officials' dashboard:** an India → state → district map uses a green/yellow/red severity scale.
-8. **Reporting:** monthly summaries become formal reports and survey triggers.
-9. **Lab routing:** moderate- and high-risk cases are assigned to the nearest appropriate lab.
-10. **Verification loop:** field and lab results become labeled evidence for later model iterations.
+## Intelligence requirements
 
-## Round 1 scope
+- Midweight EfficientNetV2-S image classifier.
+- Crop-aware ranked outputs rather than one unqualified label.
+- Out-of-distribution and poor-image detection.
+- Model version and preprocessing version attached to every prediction.
+- Gemini may explain structured findings but must not replace the vision model.
+- Weather supplied by Open-Meteo and clearly separated from model evidence.
+- Severity derived from documented rules using confidence, report density, recency, and weather context.
 
-| Capability | Round 1 delivery |
-| --- | --- |
-| Farmer photo upload and disease detection | Partial working prototype with limited classes |
-| Officials' severity dashboard | Partial working prototype using simulated data |
-| Collective retraining and caching | Architecture and mocked retraining cycle |
-| Weather correlation | Architecture and simulated example output |
-| LLM advice | Real call using sample or simulated structured input |
-| Solutions cache | Conceptual flow and a mocked cache hit |
-| Lab routing | Architecture only |
-| Shared field-survey workflow | Architecture only |
+## Explicitly out of scope
 
-The demo must distinguish working behavior from simulated or planned behavior. Visible interactions should be real even when their underlying data is synthetic.
+- Laboratory routing, referrals, sample collection, or certification.
+- Sending farmer scans to officials or external organizations.
+- Government authentication or operational response workflows.
+- Pesticide dosage, brand recommendations, or guaranteed treatment plans.
+- Marketplace, payments, subscriptions, lead generation, or business operations.
+- Claims of official endorsement, nationwide deployment, or verified outbreak detection.
 
-## Success signals for the prototype
+## Quality requirements
 
-- A supported image produces a diagnosis result and understandable localized advice.
-- Simulated district data renders correctly with three severity levels.
-- A judge can follow one case from scan to regional aggregation, official action, and lab verification.
-- Each demo screen clearly labels simulated data and model confidence.
-- The team can explain how caching, retraining, privacy, and validation would work in production.
+- Mobile-first and keyboard accessible.
+- Major Indian language support with English fallback.
+- Location and API failures must have clear recovery states.
+- Uploaded images and coordinates must never enter Git.
+- Sample regional data must be labeled as sample data.
+- Evaluation must report per-class and per-source performance, not only aggregate accuracy.
+- No exact duplicate may cross training, validation, and test splits.
 
-## Risks and open questions
+## Success criteria
 
-- Identify legally usable crop image, weather, outbreak, and laboratory datasets.
-- Define a specific explainable unsupervised method rather than claiming generic AI correlation.
-- Establish consent, anonymization, retention, and precise-location access rules.
-- Treat generated advice as decision support, not a replacement for agricultural experts.
-- Validate pesticide-related guidance against official recommendations before release.
-- Keep Round 1 claims aligned with what is genuinely implemented.
+- A user can complete a crop scan and retrieve it from history.
+- Live location and weather work when permission and network access are available.
+- The trained classifier returns calibrated candidates for supported crops.
+- Unsupported images produce an honest unable-to-identify response.
+- Regional insights communicate patterns without revealing individuals or implying authority.
+- The repository can be installed, tested, and understood as a serious standalone portfolio project.

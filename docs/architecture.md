@@ -1,83 +1,68 @@
-# System Architecture
+# Wellfarm Architecture
 
-Wellfarm is designed as a modular platform so the Round 1 demo can use simulations while keeping the path to a validated pilot explicit.
+Wellfarm uses a modular local-first architecture so the web experience, API, machine-learning pipeline, and data contracts can evolve independently without pretending to operate external services.
 
 ```mermaid
-flowchart TD
-    Farmer[Farmer app] -->|photo + field context| API[Application API]
-    API --> CV[Vision inference service]
-    CV --> Case[(Case and scan store)]
-    CV --> Advice[Advisory service]
-    Weather[Weather observations] --> Correlation[Weather/outbreak correlation]
-    Case --> Correlation
-    Correlation --> Cache[(Solutions cache)]
-    Cache --> Advice
-    Advice -->|localized guidance| Farmer
-    Case --> Aggregate[Geographic aggregation]
-    Aggregate --> Dashboard[Officials' dashboard]
-    Advice --> Dashboard
-    Case --> Router[Risk and lab router]
-    Router --> Lab[Laboratory / field workflow]
-    Lab -->|verified outcome| Case
-    Case --> Training[Controlled training pipeline]
-    Training --> Registry[(Model registry)]
-    Registry --> CV
+flowchart LR
+    Web[Wellfarm web app] --> API[Local API]
+    API --> Store[(PostgreSQL or SQLite)]
+    API --> Vision[Vision inference]
+    API --> Weather[Open-Meteo]
+    Vision --> Advice[Explanation layer]
+    Store --> Insights[Regional insights]
+    Advice --> Web
+    Insights --> Web
 ```
 
-## Repository map
+## Boundaries
 
 ```text
 apps/
-  farmer-app/             Farmer-facing mobile/web client
-  officials-dashboard/    Geographic monitoring and reporting UI
+  farmer-app/             Crop scanning and personal fieldbook boundary
+  insights-dashboard/     Aggregate pattern exploration boundary
+
+platform/replit/
+  artifacts/wellfarm/     Runnable React application
+  artifacts/api-server/   Local HTTP API
+  lib/                    Generated contracts and database package
+
 services/
-  api/                    Authentication, case, reporting, and routing APIs
-  vision/                 Image preprocessing and disease/pest inference
-  advisory/               Localized farmer and official recommendations
-  intelligence/           Aggregation, correlation, caching, and retraining jobs
-packages/
-  contracts/              Shared API and event schemas
+  vision/                 Dataset preparation, training, evaluation, inference
+  advisory/               Plain-language explanation from structured evidence
+  intelligence/           Aggregate calculations and severity rules
+  api/                    API boundary documentation
+
 data/
-  samples/                Safe synthetic demo fixtures
-  schemas/                Dataset documentation and validation schemas
-infrastructure/           Deployment and environment templates
-docs/                     Product, architecture, safety, and contribution docs
+  raw/                    Local source datasets; ignored by Git
+  processed/              Generated manifests; ignored by Git
+  samples/                Safe sample records for UI development and tests
+  schemas/                Machine-readable contracts
 ```
 
-## Core flows
+## Scan flow
 
-### Scan and advice
+1. The browser validates the image and requests approximate location permission.
+2. The API stores the image reference, crop context, symptoms, and privacy-reduced location.
+3. The vision service returns ranked labels, calibrated confidence, model version, and quality flags.
+4. Weather adds independent context from Open-Meteo.
+5. The explanation layer converts structured evidence into readable guidance without inventing a diagnosis or chemical prescription.
+6. The saved result appears in the user's fieldbook.
 
-1. The client captures a photo, crop type, approximate location, and optional symptoms.
-2. The API removes unnecessary metadata, validates consent, and creates a case.
-3. The vision service returns ranked labels, confidence, and model version.
-4. The advisory service checks the solutions cache, then produces localized guidance from approved structured facts.
-5. The client displays uncertainty, safe next steps, and escalation guidance.
+## Regional insight flow
 
-### Regional intelligence
+1. Eligible local scan records are reduced to coarse geographic cells.
+2. Duplicate and stale records are filtered.
+3. Documented rules compute an informational severity level.
+4. The insights UI shows aggregate counts and contributing evidence.
+5. No external recipient is contacted and no operational case is created.
 
-1. Authorized jobs aggregate anonymized cases into sufficiently large geographic groups.
-2. Severity combines report volume, confidence, recency, and verified outcomes.
-3. The intelligence service relates outbreak series to temperature, humidity, and rainfall windows.
-4. Officials see the resulting signal and recommended response, not an unsupported causal claim.
+## Data and privacy
 
-### Verification and learning
+- Exact coordinates are used only for immediate local context and are reduced before aggregation.
+- Uploaded images, databases, secrets, manifests, and model weights remain ignored by Git.
+- Regional screens use sample records until a user intentionally creates sufficient local data.
+- The system has no laboratory, government, referral, or third-party submission adapter.
 
-1. Cases at or above the referral threshold are matched to an appropriate nearby lab.
-2. Lab or field staff record verified labels and notes.
-3. New verified records enter a versioned training dataset.
-4. A controlled pipeline evaluates candidate models before any deployment.
-5. The current model remains available for rollback.
+## Deployment direction
 
-## Round 1 deployment
-
-The prototype may run all interfaces and mock services locally. Synthetic fixtures should drive the district map, retraining log, cache example, weather signature, and lab referral. The image classifier and LLM request can be real but must display model limitations.
-
-## Production considerations
-
-- Use a spatially enabled relational database for cases, districts, and lab proximity.
-- Store images in encrypted object storage with short-lived access URLs.
-- Use a queue for inference, reports, referrals, and training jobs.
-- Keep personally identifying data separate from anonymized analytical records.
-- Require review for high-impact advisories and model promotions.
-- Log input provenance, prompt/template version, model version, and human verification.
+The web application and API may run together for local development. A hosted portfolio deployment can separate static frontend hosting, a small API service, object storage, and PostgreSQL, subject to free-tier limits and clear data-retention controls.

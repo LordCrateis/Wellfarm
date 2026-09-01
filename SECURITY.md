@@ -1,6 +1,6 @@
 # Security and Responsible Disclosure
 
-Wellfarm is an early prototype and must not be used as the sole basis for crop-treatment decisions.
+Wellfarm is a portfolio crop-health application and must not be used as the sole basis for crop-treatment decisions.
 
 ## Reporting a vulnerability
 
@@ -9,9 +9,9 @@ Do not open a public issue containing an exploit, credential, precise farmer loc
 ## Sensitive material that must not enter Git
 
 - API keys, passwords, access tokens, certificates, or private keys
-- Identifiable farmer, official, or laboratory records
+- Identifiable user records
 - Precise farm coordinates unless explicitly approved and protected
 - Production exports, raw private images, or proprietary datasets
 - Unlicensed model weights or data
 
-Use synthetic records for development and demonstration. Revoke any exposed credential immediately and remove it from both the current tree and repository history.
+Use non-identifying sample records for development and tests. Revoke any exposed credential immediately and remove it from both the current tree and repository history.

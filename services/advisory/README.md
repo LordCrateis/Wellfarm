@@ -1,17 +1,14 @@
 # Advisory Service
 
-The advisory service turns approved structured evidence into readable guidance. It supports distinct templates for farmers and officials and can localize content into regional languages.
+The advisory service turns structured model, crop, symptom, and weather evidence into readable guidance in the selected language.
 
-## Guardrails
+## Safety rules
 
-- Ground responses only in supplied diagnosis, weather signal, policy, and approved knowledge.
-- Include uncertainty and escalation conditions.
-- Do not invent pesticide dosage, waiting periods, or legal claims.
-- Prefer validated cached solutions when all matching criteria are satisfied.
-- Store template version, evidence identifiers, language, and model metadata.
-- Route high-risk or low-confidence outputs for human review.
+- Preserve confidence and uncertainty.
+- Never upgrade a candidate label into a definitive diagnosis.
+- Do not invent facts absent from structured evidence.
+- Do not recommend pesticide brands or dosages.
+- Suggest independent consultation with a qualified local agricultural professional only when appropriate.
+- Never send, refer, or submit a user's case to another party.
 
-## Prototype behavior
-
-A real LLM call may operate on sample structured findings. The UI must label synthetic evidence and keep a deterministic fallback advisory for demonstrations without network access.
-
+A deterministic local explanation remains available when the optional language-model request is unavailable.

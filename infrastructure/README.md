@@ -1,17 +1,5 @@
 # Infrastructure
 
-Deployment definitions will live here after the prototype stack is chosen.
+Deployment definitions for the standalone Wellfarm portfolio application belong here. The preferred direction is a free-tier static frontend, a small API runtime, object storage for user-controlled uploads, and PostgreSQL where persistent hosting is enabled.
 
-A pilot-grade environment is expected to include:
-
-- Application and inference containers
-- Spatial relational database
-- Encrypted object storage
-- Queue and worker processes
-- Cache
-- Secrets manager
-- Metrics, logs, traces, and alerting
-- Separate development, test, and production configuration
-
-Never commit cloud credentials, private keys, farmer images, or production exports. Use `.env.example` only to document required local variables.
-
+No infrastructure should provision laboratory, government, referral, messaging, payment, or commercial integrations.

@@ -1,40 +1,31 @@
-# Roadmap
+# Wellfarm Roadmap
 
-## Phase 0 — repository and design foundation
+## Foundation
 
-- Agree on supported crops, diseases, pests, and languages.
-- Document system boundaries, API contracts, and demo assumptions.
-- Evaluate public datasets and their licenses.
-- Prepare simulated district, weather, scan, and laboratory data.
+- Maintain the farmer scan, history, location, and live-weather flows.
+- Replace fixture crop analysis with a trained EfficientNetV2-S model.
+- Keep sample regional data visibly identified.
+- Remove obsolete external-role and case-routing surfaces.
 
-## Phase 1 — Round 1 prototype
+## Vision model
 
-- Build the farmer photo-upload journey.
-- Integrate a small pretrained or fine-tuned image classifier.
-- Generate a Marathi or other regional-language advisory from structured sample input.
-- Build the officials' district-severity dashboard using synthetic data.
-- Demonstrate a cache hit, retraining event, weather signature, and lab referral.
-- Prepare an end-to-end scripted demo with visible simulation labels.
+- Train EfficientNetV2-S on the normalized 54-label manifest.
+- Evaluate by crop, condition, source, and class imbalance.
+- Add confidence calibration and unsupported-image rejection.
+- Export the selected model to ONNX with versioned preprocessing.
+- Connect inference to the scan API.
 
-## Phase 2 — pilot-ready system
+## Product quality
 
-- Add authentication and role-based access for farmers, officials, and labs.
-- Add secure object storage, a geospatial database, queues, and observability.
-- Integrate validated weather data and a laboratory registry.
-- Evaluate the model with regionally representative field samples.
-- Add consent, audit logging, retention controls, and human review.
+- Complete responsive behavior and accessibility review.
+- Finish translations for major Indian languages.
+- Add user-controlled deletion and export of scan history.
+- Document severity rules and model limitations inside the product.
+- Add automated API, data-pipeline, and end-to-end tests.
 
-## Phase 3 — regional pilot
+## Portfolio release
 
-- Pilot in a small number of Maharashtra districts.
-- Track diagnostic precision, referral turnaround, advisory usefulness, and adoption.
-- Compare model predictions with expert and laboratory verification.
-- Improve accessibility, offline behavior, and local-language content.
-
-## Future production direction
-
-- Expand crop and disease coverage only after measured validation.
-- Introduce controlled incremental retraining with model approval and rollback.
-- Publish monitoring for data drift, class imbalance, and geographic bias.
-- Connect verified outbreak signals to government response workflows.
-
+- Deploy the web application and API on sustainable free tiers.
+- Publish model evaluation results and a reproducible setup guide.
+- Add screenshots, architecture notes, and technical decisions.
+- Keep all external submission, referral, certification, and commercial workflows out of scope.
