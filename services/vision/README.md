@@ -18,3 +18,40 @@ The vision service preprocesses crop images and returns structured candidate lab
 - Save evaluation metrics and confusion matrices with each candidate model.
 - Keep large weights outside Git; document how to retrieve them.
 
+## Prepare the local dataset
+
+The preparation script maps the downloaded sources to stable Wellfarm labels,
+removes exact duplicates with SHA-256, and writes deterministic CSV manifests.
+It reads `data/raw` without modifying any source image.
+
+```bash
+npm run dataset:prepare
+```
+
+The npm launcher searches `PYTHON`, a project `.venv`, system Python, and the
+bundled Codex Python runtime. You can also invoke the Python script directly.
+Unchanged files are reused from a local content-hash cache on later runs.
+
+Generated files are written to `data/processed/wellfarm-v1` (ignored by Git):
+
+- `manifest.csv` — every usable image and its normalized metadata
+- `train.csv`, `validation.csv`, `test.csv` — ready-to-load splits
+- `labels.json` — model label catalogue
+- `summary.json` — counts, split policy, exclusions, and data-quality findings
+
+PlantDoc is used as a field-image test source when a matching label exists in
+another dataset. Otherwise, exact-duplicate groups are split 70/15/15. Onion is
+excluded until its raw sample/day folders can be assigned trustworthy labels.
+
+To create framework-friendly image folders without consuming another full copy
+of the dataset, use hardlinks:
+
+```bash
+python services/vision/scripts/prepare_dataset.py --materialize hardlink
+```
+
+Run the dependency-free unit tests with:
+
+```bash
+npm run test:dataset
+```
