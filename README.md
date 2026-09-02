@@ -65,7 +65,7 @@ The pipeline normalizes labels, removes exact duplicates, prevents duplicate lea
 
 Model v1 is explicitly scoped to rice, wheat, maize, cotton, sugarcane, soybean, tomato, and potato: 63,011 unique usable images across 54 labels. Groundnut and onion remain unsupported until trustworthy labeled sources are available.
 
-The next major milestone is an EfficientNetV2-S crop-condition classifier trained on this locked scope, evaluated by crop and source, exported to ONNX, and connected to the scan API with honest out-of-distribution handling.
+The repository now includes a resumable EfficientNetV2-S training and evaluation pipeline for this locked scope. See `services/vision/README.md` for the smoke test, full training command, cached checkpoints, and machine-readable result files. Model inference integration and honest out-of-distribution handling follow after the first candidate clears evaluation.
 
 ## License
 

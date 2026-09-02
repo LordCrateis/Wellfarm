@@ -5,6 +5,10 @@
   "scripts": {
     "dev": "node ./platform/replit/scripts/dev.mjs",
     "dataset:prepare": "node services/vision/scripts/run_python.mjs services/vision/scripts/prepare_dataset.py",
-    "test:dataset": "node services/vision/scripts/run_python.mjs -m unittest discover -s services/vision/tests -v"
+    "test:dataset": "node services/vision/scripts/run_python.mjs -m unittest discover -s services/vision/tests -v",
+    "model:setup": "node services/vision/scripts/run_python.mjs -m pip install -r services/vision/requirements-ml.txt",
+    "model:train": "node services/vision/scripts/run_python.mjs services/vision/scripts/train_model.py",
+    "model:smoke": "node services/vision/scripts/run_python.mjs services/vision/scripts/train_model.py --run-name smoke --epochs 1 --head-epochs 1 --image-size 160 --limit-per-class 8 --checkpoint-every-batches 10",
+    "model:status": "node services/vision/scripts/run_python.mjs services/vision/scripts/inspect_run.py"
   }
 }

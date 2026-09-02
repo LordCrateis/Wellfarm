@@ -72,3 +72,56 @@ Run the dependency-free unit tests with:
 ```bash
 npm run test:dataset
 ```
+
+## Train model v1
+
+Training uses an ImageNet-pretrained EfficientNetV2-S classifier with mild
+field-image augmentation, inverse-square-root class weighting, a frozen-head
+warm-up, full fine-tuning, early stopping, and evaluation by class, crop, and
+source. Install the local dependencies once:
+
+```bash
+npm run model:setup
+```
+
+First verify the complete pipeline on a tiny balanced sample:
+
+```bash
+npm run model:smoke
+```
+
+Then start the real run:
+
+```bash
+npm run model:train
+```
+
+The CPU-friendly defaults use batch size 8, 224px images, one head-only epoch,
+and up to seven fine-tuning epochs. On a machine with an NVIDIA CUDA runtime,
+the same command selects CUDA automatically. Override settings after `--`:
+
+```bash
+npm run model:train -- --batch-size 16 --workers 6 --epochs 10
+```
+
+Training state is cached in
+`models/artifacts/wellfarm-v1/efficientnetv2-s-v1` (ignored by Git):
+
+- `last.pt` — periodic resumable checkpoint;
+- `best.pt` — checkpoint with the best validation macro-F1;
+- `progress.json` — current state and latest scores;
+- `history.jsonl` — one machine-readable record per completed epoch;
+- `metrics/*.json` — validation and held-out test summaries;
+- `metrics/*_per_class.csv` — precision, recall, and F1 for every label;
+- `metrics/*_confusion_matrix.csv` — full error matrix;
+- `run_config.json` and `label_map.json` — exact reproducibility metadata.
+
+Stopping with Ctrl+C is safe. Repeat the same command to resume. Use a distinct
+`--run-name` whenever changing important hyperparameters; an existing run always
+resumes with its cached weights.
+
+Inspect progress without loading PyTorch:
+
+```bash
+npm run model:status
+```
