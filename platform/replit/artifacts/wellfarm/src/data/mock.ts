@@ -1,3 +1,5 @@
+import { Crop } from "@workspace/api-client-react";
+
 export type Severity = "low" | "moderate" | "high";
 export type ScanStatus = "Reviewed" | "Pending review" | "Flagged";
 
@@ -16,7 +18,7 @@ export interface Scan {
   imageQuality: "Good" | "Fair" | "Poor";
 }
 
-export const crops = ["Rice", "Wheat", "Maize", "Cotton", "Sugarcane", "Soybean", "Groundnut", "Tomato", "Potato", "Onion"];
+export const crops = Object.values(Crop);
 export const conditions = ["Rice bacterial leaf blight", "Rice brown spot", "Maize northern leaf blight", "Maize fall armyworm damage", "Tomato early blight", "Potato late blight", "Wheat leaf rust", "Healthy", "Unknown", "Unsupported crop / condition", "Poor-quality image"];
 export const states = ["Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal", "Andaman and Nicobar Islands", "Chandigarh", "Dadra and Nagar Haveli and Daman and Diu", "Delhi", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry"];
 

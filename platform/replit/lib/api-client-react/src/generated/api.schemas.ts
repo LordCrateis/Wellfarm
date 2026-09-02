@@ -18,10 +18,8 @@ export const Crop = {
   Cotton: "Cotton",
   Sugarcane: "Sugarcane",
   Soybean: "Soybean",
-  Groundnut: "Groundnut",
   Tomato: "Tomato",
   Potato: "Potato",
-  Onion: "Onion",
 } as const;
 
 export interface CreateScanInput {

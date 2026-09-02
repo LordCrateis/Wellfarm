@@ -63,7 +63,9 @@ The pipeline normalizes labels, removes exact duplicates, prevents duplicate lea
 
 ## Current direction
 
-The next major milestone is an EfficientNetV2-S crop-condition classifier trained on the prepared dataset, evaluated by crop and source, exported to ONNX, and connected to the scan API with honest out-of-distribution handling.
+Model v1 is explicitly scoped to rice, wheat, maize, cotton, sugarcane, soybean, tomato, and potato: 63,011 unique usable images across 54 labels. Groundnut and onion remain unsupported until trustworthy labeled sources are available.
+
+The next major milestone is an EfficientNetV2-S crop-condition classifier trained on this locked scope, evaluated by crop and source, exported to ONNX, and connected to the scan API with honest out-of-distribution handling.
 
 ## License
 

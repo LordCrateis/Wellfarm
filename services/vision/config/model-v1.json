@@ -1,0 +1,19 @@
+{
+  "dataset_version": "wellfarm-v1",
+  "model_family": "efficientnetv2-s",
+  "minimum_images_per_label": 50,
+  "supported_crops": [
+    "cotton",
+    "maize",
+    "potato",
+    "rice",
+    "soybean",
+    "sugarcane",
+    "tomato",
+    "wheat"
+  ],
+  "excluded_crops": {
+    "groundnut": "No normalized, trustworthy labeled source is present in wellfarm-v1.",
+    "onion": "Available sample/day folders do not have trustworthy condition labels."
+  }
+}

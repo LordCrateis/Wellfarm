@@ -25,6 +25,7 @@ IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff"}
 DEFAULT_SEED = "wellfarm-v1"
 SPLIT_RATIOS = (0.70, 0.15, 0.15)
 FIELD_HOLDOUT_SOURCE = "plantdoc"
+MODEL_SCOPE_PATH = Path(__file__).resolve().parents[1] / "config" / "model-v1.json"
 
 
 @dataclass(frozen=True)
@@ -480,7 +481,66 @@ def write_csv(path: Path, records: list[Record]) -> None:
         writer.writerows(asdict(record) for record in records)
 
 
-def write_outputs(output: Path, records: list[Record], diagnostics: dict[str, object], seed: str) -> None:
+def load_model_scope(path: Path = MODEL_SCOPE_PATH) -> dict[str, object]:
+    scope = json.loads(path.read_text(encoding="utf-8"))
+    crops = scope.get("supported_crops")
+    minimum = scope.get("minimum_images_per_label")
+    if not isinstance(crops, list) or not crops or not all(isinstance(crop, str) for crop in crops):
+        raise ValueError(f"Invalid supported_crops in {path}")
+    if len(crops) != len(set(crops)):
+        raise ValueError(f"Duplicate supported crop in {path}")
+    if not isinstance(minimum, int) or minimum < 1:
+        raise ValueError(f"Invalid minimum_images_per_label in {path}")
+    return scope
+
+
+def validate_model_scope(records: list[Record], scope: dict[str, object]) -> dict[str, object]:
+    supported = list(scope["supported_crops"])
+    supported_set = set(supported)
+    crop_counts = Counter(record.crop for record in records)
+    label_counts = Counter(record.label for record in records)
+    labels_by_crop: dict[str, set[str]] = defaultdict(set)
+    for record in records:
+        labels_by_crop[record.crop].add(record.label)
+
+    missing = sorted(supported_set - set(crop_counts))
+    unexpected = sorted(set(crop_counts) - supported_set)
+    minimum = int(scope["minimum_images_per_label"])
+    undercovered = sorted(label for label, count in label_counts.items() if count < minimum)
+    if missing or unexpected or undercovered:
+        problems = []
+        if missing:
+            problems.append(f"missing supported crops: {', '.join(missing)}")
+        if unexpected:
+            problems.append(f"unconfigured crops: {', '.join(unexpected)}")
+        if undercovered:
+            problems.append(f"labels below {minimum} images: {', '.join(undercovered)}")
+        raise ValueError("Model v1 scope validation failed: " + "; ".join(problems))
+
+    return {
+        "dataset_version": scope["dataset_version"],
+        "model_family": scope["model_family"],
+        "minimum_images_per_label": minimum,
+        "label_count": len(label_counts),
+        "image_count": len(records),
+        "crops": {
+            crop: {
+                "image_count": crop_counts[crop],
+                "label_count": len(labels_by_crop[crop]),
+            }
+            for crop in supported
+        },
+        "excluded_crops": scope.get("excluded_crops", {}),
+    }
+
+
+def write_outputs(
+    output: Path,
+    records: list[Record],
+    diagnostics: dict[str, object],
+    seed: str,
+    model_scope: dict[str, object],
+) -> None:
     output.mkdir(parents=True, exist_ok=True)
     write_csv(output / "manifest.csv", records)
     for split in ("train", "validation", "test"):
@@ -498,7 +558,8 @@ def write_outputs(output: Path, records: list[Record], diagnostics: dict[str, ob
             },
         )["count"] += 1
     (output / "labels.json").write_text(
-        json.dumps({"labels": labels}, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        json.dumps({"model_scope": model_scope, "labels": labels}, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
     )
 
     split_counts = Counter(record.split for record in records)
@@ -518,6 +579,7 @@ def write_outputs(output: Path, records: list[Record], diagnostics: dict[str, ob
             "by_source": dict(sorted(source_counts.items())),
             "by_label": dict(sorted(label_counts.items())),
         },
+        "model_scope": model_scope,
         "diagnostics": diagnostics,
         "excluded": {
             "onion_leaf": "Raw files have sample/day groups but no trustworthy class labels.",
@@ -583,7 +645,12 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Hashing {len(candidates)} candidates and removing exact duplicates...", flush=True)
     records, diagnostics = build_records(candidates, repo_root, args.seed, hash_cache)
     write_hash_cache(cache_path, hash_cache)
-    write_outputs(output, records, diagnostics, args.seed)
+    try:
+        model_scope = validate_model_scope(records, load_model_scope())
+    except (OSError, ValueError, KeyError, json.JSONDecodeError) as error:
+        print(str(error), file=sys.stderr)
+        return 4
+    write_outputs(output, records, diagnostics, args.seed, model_scope)
     if args.materialize != "none":
         print(f"Materializing split folders using {args.materialize}...")
         materialize(records, repo_root, output, args.materialize)

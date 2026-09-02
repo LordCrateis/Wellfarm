@@ -18,6 +18,23 @@ The vision service preprocesses crop images and returns structured candidate lab
 - Save evaluation metrics and confusion matrices with each candidate model.
 - Keep large weights outside Git; document how to retrieve them.
 
+## Model v1 scope
+
+The tracked source of truth is `services/vision/config/model-v1.json`. Model v1 accepts eight crops:
+
+| Crop | Labels | Unique images |
+| --- | ---: | ---: |
+| Cotton | 7 | 2,127 |
+| Maize | 6 | 6,154 |
+| Potato | 7 | 4,702 |
+| Rice | 7 | 14,516 |
+| Soybean | 5 | 5,623 |
+| Sugarcane | 7 | 2,972 |
+| Tomato | 10 | 25,918 |
+| Wheat | 5 | 999 |
+
+All 54 retained labels have at least 50 unique images. Groundnut and onion are unsupported in model v1 because their current local sources do not provide trustworthy normalized labels.
+
 ## Prepare the local dataset
 
 The preparation script maps the downloaded sources to stable Wellfarm labels,

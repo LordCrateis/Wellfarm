@@ -49,5 +49,51 @@ class SplitTests(unittest.TestCase):
         self.assertGreater(train, 0)
 
 
+class ModelScopeTests(unittest.TestCase):
+    def records(self, crops: list[str], count: int = 2):
+        return [
+            prepare_dataset.Record(
+                image_id=f"{crop}-{index}",
+                sha256=f"{crop}-{index}",
+                path=f"{crop}-{index}.jpg",
+                source="test",
+                source_class="healthy",
+                crop=crop,
+                condition="healthy",
+                label=f"{crop}__healthy",
+                category="healthy",
+                source_partition="test",
+                split="train",
+            )
+            for crop in crops
+            for index in range(count)
+        ]
+
+    def test_model_scope_reports_crop_and_label_coverage(self):
+        scope = {
+            "dataset_version": "test-v1",
+            "model_family": "test-model",
+            "minimum_images_per_label": 2,
+            "supported_crops": ["rice", "wheat"],
+            "excluded_crops": {"onion": "unlabeled"},
+        }
+        coverage = prepare_dataset.validate_model_scope(
+            self.records(["rice", "wheat"]), scope
+        )
+        self.assertEqual(coverage["label_count"], 2)
+        self.assertEqual(coverage["image_count"], 4)
+        self.assertEqual(coverage["crops"]["rice"]["image_count"], 2)
+
+    def test_model_scope_rejects_unconfigured_crop(self):
+        scope = {
+            "dataset_version": "test-v1",
+            "model_family": "test-model",
+            "minimum_images_per_label": 1,
+            "supported_crops": ["rice"],
+        }
+        with self.assertRaisesRegex(ValueError, "unconfigured crops: onion"):
+            prepare_dataset.validate_model_scope(self.records(["rice", "onion"]), scope)
+
+
 if __name__ == "__main__":
     unittest.main()

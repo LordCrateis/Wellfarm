@@ -47,10 +47,8 @@ export const CreateScanBody = zod.object({
     "Cotton",
     "Sugarcane",
     "Soybean",
-    "Groundnut",
     "Tomato",
     "Potato",
-    "Onion",
   ]),
   symptoms: zod
     .array(zod.string().min(1).max(createScanBodySymptomsItemMax))
@@ -109,10 +107,8 @@ export const CreateScanResponse = zod
       "Cotton",
       "Sugarcane",
       "Soybean",
-      "Groundnut",
       "Tomato",
       "Potato",
-      "Onion",
     ]),
     symptoms: zod
       .array(zod.string().min(1).max(createScanResponseOneSymptomsItemMax))
@@ -193,10 +189,8 @@ export const GetScanResponse = zod
       "Cotton",
       "Sugarcane",
       "Soybean",
-      "Groundnut",
       "Tomato",
       "Potato",
-      "Onion",
     ]),
     symptoms: zod
       .array(zod.string().min(1).max(getScanResponseOneSymptomsItemMax))
@@ -281,10 +275,8 @@ export const UploadScanImageResponse = zod
       "Cotton",
       "Sugarcane",
       "Soybean",
-      "Groundnut",
       "Tomato",
       "Potato",
-      "Onion",
     ]),
     symptoms: zod
       .array(zod.string().min(1).max(uploadScanImageResponseOneSymptomsItemMax))

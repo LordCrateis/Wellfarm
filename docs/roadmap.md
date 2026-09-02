@@ -9,6 +9,7 @@
 
 ## Vision model
 
+- Model v1 scope is locked to eight adequately labeled crops and 54 labels.
 - Train EfficientNetV2-S on the normalized 54-label manifest.
 - Evaluate by crop, condition, source, and class imbalance.
 - Add confidence calibration and unsupported-image rejection.

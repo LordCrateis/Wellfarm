@@ -42,9 +42,11 @@ Wellfarm helps a user document visible crop symptoms, receive an explainable ima
 - See the evidence behind severity calculations.
 - Never expose exact farm coordinates or claim an official surveillance feed.
 
-## Supported crop direction
+## Supported crop scope
 
-Rice, wheat, maize, cotton, sugarcane, soybean, groundnut, tomato, potato, and onion remain the target crop set. A crop is enabled in the classifier only when licensed, labeled, and sufficiently representative training data are available.
+Model v1 supports rice, wheat, maize, cotton, sugarcane, soybean, tomato, and potato. These eight crops have normalized, trustworthy labeled coverage in `wellfarm-v1`: 63,011 unique usable images across 54 labels.
+
+Groundnut and onion are deliberately excluded from classifier-facing forms and API contracts. Groundnut has no normalized labeled source in the current dataset, while the available onion folders do not have trustworthy condition labels. A later model may add crops only after their data passes the same licensing, labeling, deduplication, and minimum-class-coverage checks.
 
 ## Intelligence requirements
 
