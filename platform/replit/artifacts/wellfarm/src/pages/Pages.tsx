@@ -30,7 +30,6 @@ import {
   cacheEntries,
   crops,
   districtSummaries,
-  mapStates,
   modelEvaluation,
   scans,
   trend,
@@ -51,6 +50,7 @@ import {
 } from "@/services/adapters";
 import { Brand } from "@/components/Brand";
 import { AppShell, LanguageSelect, PublicNav } from "@/components/AppShell";
+import { WellfarmMap } from "@/components/WellfarmMap";
 import {
   MiniBar,
   Provenance,
@@ -253,40 +253,42 @@ export function PublicHome({
               <div className="font-mono text-[9px] uppercase tracking-[.14em] text-[hsl(var(--muted-foreground))]">
                 Regional insight preview
               </div>
-              <div className="mt-1 text-sm font-bold">
-                Coastal Odisha crop watch
-              </div>
+              <div className="mt-1 text-sm font-bold">India signal snapshot</div>
             </div>
             <Provenance kind="sample" />
           </div>
-          <div className="relative mt-3 h-[310px] overflow-hidden bg-[hsl(112_22%_90%)]">
-            <div className="absolute inset-0 opacity-30 wf-grid-paper" />
-            <div className="absolute left-[16%] top-[20%] h-32 w-40 rotate-12 border-2 border-[hsl(var(--primary)/_.3)] bg-[hsl(112_22%_81%/_.7)]" />
-            <div className="absolute left-[45%] top-[28%] h-40 w-56 -rotate-6 border-2 border-[hsl(var(--primary)/_.3)] bg-[hsl(112_22%_81%/_.7)]" />
-            <div className="absolute left-[34%] top-[61%] h-28 w-44 rotate-3 border-2 border-[hsl(var(--primary)/_.3)] bg-[hsl(112_22%_81%/_.7)]" />
-            {districtSummaries.slice(0, 4).map((d) => (
-              <div
-                key={d.district}
-                className="wf-map-dot absolute"
-                style={{ left: `${d.x}%`, top: `${d.y}%` }}
-              >
-                <span
-                  className={`block h-4 w-4 rounded-full border-4 border-[hsl(var(--card))] ${d.severity === "high" ? "bg-[hsl(4_48%_44%)]" : d.severity === "moderate" ? "bg-[hsl(var(--accent))]" : "bg-[hsl(var(--primary))]"}`}
-                />
-                <span className="absolute left-5 top-0 whitespace-nowrap text-[10px] font-bold">
-                  {d.district}
-                </span>
+          <div className="mt-3">
+            <WellfarmMap
+              ariaLabel="Preview map of sample regional crop-health signals in India"
+              className="h-[310px] sm:h-[340px]"
+              maxFitZoom={5}
+              showLegend
+              points={districtSummaries.slice(0, 4).map((district) => ({
+                latitude: district.latitude,
+                longitude: district.longitude,
+                label: `${district.district}, ${district.state}`,
+                detail: `${district.reports} sample reports · ${district.severity}`,
+                severity: district.severity,
+              }))}
+            />
+            <div className="grid gap-2 border-x border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] p-3 sm:grid-cols-3">
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">
+                  Highest growth
+                </div>
+                <div className="mt-1 text-sm font-extrabold">Cuttack · +31%</div>
               </div>
-            ))}
-            <div className="absolute bottom-3 left-3 border border-[hsl(var(--border))] bg-[hsl(var(--card)/_.9)] p-3">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">
-                Cuttack cluster
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">
+                  High severity
+                </div>
+                <div className="mt-1 text-sm font-extrabold">2 districts</div>
               </div>
-              <div className="mt-1 text-lg font-extrabold">
-                18 reports · moderate
-              </div>
-              <div className="text-xs text-[hsl(var(--muted-foreground))]">
-                14 unique farms · +31% this period
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">
+                  Map data
+                </div>
+                <div className="mt-1 text-sm font-extrabold">OpenStreetMap</div>
               </div>
             </div>
           </div>
@@ -926,19 +928,38 @@ export function ScanJourney({
                 </div>
               )}
               {locationState === "success" && (
-                <div className="mt-7 border border-[hsl(112_22%_54%)] bg-[hsl(112_22%_81%/_.45)] p-4 text-left">
-                  <div className="flex items-center gap-2 text-sm font-bold text-[hsl(var(--primary))]">
-                    <Check size={16} />
-                    Approximate area detected
-                  </div>
-                  <div className="mt-1 text-sm">
-                    {location?.label ?? "Detected area (approx.)"} · location
-                    accuracy kept private
-                  </div>
-                  {location?.attribution && (
-                    <div className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">
-                      {location.attribution}
+                <div className="mt-7 text-left">
+                  <div className="border border-[hsl(112_22%_54%)] bg-[hsl(112_22%_81%/_.45)] p-4">
+                    <div className="flex items-center gap-2 text-sm font-bold text-[hsl(var(--primary))]">
+                      <Check size={16} />
+                      Approximate area detected
                     </div>
+                    <div className="mt-1 text-sm">
+                      {location?.label ?? "Detected area (approx.)"} · location
+                      accuracy kept private
+                    </div>
+                    {location?.attribution && (
+                      <div className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">
+                        {location.attribution}
+                      </div>
+                    )}
+                  </div>
+                  {location && (
+                    <WellfarmMap
+                      ariaLabel={`Your detected location near ${location.label}`}
+                      className="h-[240px] sm:h-[280px]"
+                      center={[location.latitude, location.longitude]}
+                      zoom={11}
+                      approximateRadiusMeters={1200}
+                      points={[
+                        {
+                          latitude: location.latitude,
+                          longitude: location.longitude,
+                          label: location.label,
+                          detail: "Approximate private location",
+                        },
+                      ]}
+                    />
                   )}
                 </div>
               )}
@@ -1630,44 +1651,21 @@ function InsightTabs({ active }: { active: string }) {
     </div>
   );
 }
-function IndiaSchematic() {
+function IndiaSignalMap() {
   return (
-    <div className="relative h-[360px] overflow-hidden border border-[hsl(var(--border))] bg-[hsl(112_22%_90%)]">
-      <div className="absolute inset-0 opacity-25 wf-grid-paper" />
-      <div className="absolute left-[24%] top-[8%] h-[270px] w-[54%] rotate-[12deg] border-2 border-[hsl(var(--primary)/_.45)] bg-[hsl(112_22%_81%/_.65)] [clip-path:polygon(31%_0,65%_4%,88%_18%,81%_40%,100%_57%,78%_71%,74%_100%,53%_80%,35%_86%,23%_66%,0_56%,16%_32%)]" />
-      {mapStates.map((s, i) => (
-        <div
-          key={s.name}
-          title={`${s.name} · ${s.severity}`}
-          className="wf-map-dot absolute"
-          style={{ left: `${s.x}%`, top: `${s.y}%` }}
-        >
-          <span
-            className={`block h-2.5 w-2.5 rounded-full ${s.severity === "high" ? "bg-[hsl(4_48%_44%)]" : s.severity === "moderate" ? "bg-[hsl(var(--accent))]" : "bg-[hsl(var(--primary))]"}`}
-          />
-        </div>
-      ))}
-      <div className="absolute bottom-3 left-3 flex flex-wrap gap-2 border border-[hsl(var(--border))] bg-[hsl(var(--card)/_.92)] p-2 text-[10px]">
-        <span className="font-bold">Schematic view</span>
-        <span className="flex items-center gap-1">
-          <i className="h-2 w-2 rounded-full bg-[hsl(var(--primary))]" />
-          Low
-        </span>
-        <span className="flex items-center gap-1">
-          <i className="h-2 w-2 rounded-full bg-[hsl(var(--accent))]" />
-          Moderate
-        </span>
-        <span className="flex items-center gap-1">
-          <i className="h-2 w-2 rounded-full bg-[hsl(4_48%_44%)]" />
-          High
-        </span>
-      </div>
-      <div className="absolute right-3 top-3">
-        <Provenance kind="sample">
-          Sample regional data · schematic boundaries
-        </Provenance>
-      </div>
-    </div>
+    <WellfarmMap
+      ariaLabel="Map of sample district crop-health signals across India"
+      className="h-[390px] sm:h-[460px]"
+      maxFitZoom={5}
+      showLegend
+      points={districtSummaries.map((district) => ({
+        latitude: district.latitude,
+        longitude: district.longitude,
+        label: `${district.district}, ${district.state}`,
+        detail: `${district.reports} reports · ${district.farms} farms · ${district.change}`,
+        severity: district.severity,
+      }))}
+    />
   );
 }
 export function RegionalOverview({
@@ -1723,7 +1721,12 @@ export function RegionalOverview({
       <div className="grid gap-5 xl:grid-cols-[1.35fr_.65fr]">
         <Box className="p-3">
           <div className="mb-3 flex items-center justify-between px-2">
-            <div className="font-bold">State severity summary</div>
+            <div>
+              <div className="font-bold">District signal map</div>
+              <div className="text-xs text-[hsl(var(--muted-foreground))]">
+                Sample locations · select a marker for details
+              </div>
+            </div>
             <button
               className="flex items-center gap-2 border border-[hsl(var(--border))] px-3 py-2 text-xs"
               data-testid="button-map-filters"
@@ -1732,7 +1735,7 @@ export function RegionalOverview({
               Filters
             </button>
           </div>
-          <IndiaSchematic />
+          <IndiaSignalMap />
         </Box>
         <Box>
           <SectionLabel eyebrow="Search the signal">
@@ -2034,6 +2037,33 @@ export function RegionalDistrict({
         />
         <Metric label="Change" value={district.change} note="previous period" />
       </div>
+      <Box className="mt-6 p-3">
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-3 px-2">
+          <div>
+            <div className="font-bold">Where this signal is located</div>
+            <div className="text-xs text-[hsl(var(--muted-foreground))]">
+              District-centre reference · sample regional record
+            </div>
+          </div>
+          <Provenance kind="sample">Sample regional data</Provenance>
+        </div>
+        <WellfarmMap
+          ariaLabel={`Map showing ${district.district} district in ${district.state}`}
+          className="h-[300px] sm:h-[380px]"
+          center={[district.latitude, district.longitude]}
+          zoom={9}
+          approximateRadiusMeters={18000}
+          points={[
+            {
+              latitude: district.latitude,
+              longitude: district.longitude,
+              label: `${district.district}, ${district.state}`,
+              detail: `${district.reports} reports · ${district.severity} severity`,
+              severity: district.severity,
+            },
+          ]}
+        />
+      </Box>
       <div className="mt-6 grid gap-5 lg:grid-cols-2">
         <Box>
           <SectionLabel eyebrow="District pattern">

@@ -72,14 +72,12 @@ export const recentScans = scans.slice(0, 5);
 export const weather = { location: "Cuttack district (approx.)", temperature: "29°C", humidity: "78%", rain: "7.4 mm", wind: "11 km/h", source: "Sample weather", updated: "Sample snapshot · 08:40 IST" };
 export const trend = [18, 21, 19, 28, 31, 38, 43, 48, 45, 54, 59, 66];
 export const districtSummaries = [
-  { district: "Cuttack", state: "Odisha", severity: "moderate" as Severity, reports: 18, farms: 14, change: "+31%", x: 60, y: 70 },
-  { district: "Karnal", state: "Haryana", severity: "high" as Severity, reports: 14, farms: 9, change: "+18%", x: 48, y: 25 },
-  { district: "Darjeeling", state: "West Bengal", severity: "high" as Severity, reports: 12, farms: 8, change: "+24%", x: 72, y: 41 },
-  { district: "Nashik", state: "Maharashtra", severity: "low" as Severity, reports: 9, farms: 7, change: "-6%", x: 42, y: 65 },
-  { district: "Kolar", state: "Karnataka", severity: "moderate" as Severity, reports: 8, farms: 6, change: "+9%", x: 45, y: 82 },
+  { district: "Cuttack", state: "Odisha", severity: "moderate" as Severity, reports: 18, farms: 14, change: "+31%", latitude: 20.4625, longitude: 85.883 },
+  { district: "Karnal", state: "Haryana", severity: "high" as Severity, reports: 14, farms: 9, change: "+18%", latitude: 29.6857, longitude: 76.9905 },
+  { district: "Darjeeling", state: "West Bengal", severity: "high" as Severity, reports: 12, farms: 8, change: "+24%", latitude: 27.041, longitude: 88.2663 },
+  { district: "Nashik", state: "Maharashtra", severity: "low" as Severity, reports: 9, farms: 7, change: "-6%", latitude: 19.9975, longitude: 73.7898 },
+  { district: "Kolar", state: "Karnataka", severity: "moderate" as Severity, reports: 8, farms: 6, change: "+9%", latitude: 13.1362, longitude: 78.1291 },
 ];
 export const allIndiaSummary = { reports: 412, farms: 286, high: 9, moderate: 21, low: 7, pending: 26 };
 export const modelEvaluation = { evaluated: "18 Mar 2025", reviewed: 27, changed: 64, skipped: 1_284, candidate: "0.78 macro F1", current: "0.74 macro F1", status: "Offline sample evaluation" };
 export const cacheEntries = [{ condition: "Rice bacterial leaf blight", region: "Coastal Odisha", validations: 6, full: "4.8 s", cached: "0.7 s", freshness: "12 days" }, { condition: "Wheat leaf rust", region: "Haryana plains", validations: 4, full: "4.6 s", cached: "0.8 s", freshness: "21 days" }];
-
-export const mapStates = states.map((name, i) => ({ name, severity: i % 13 === 0 ? "high" as Severity : i % 5 === 0 ? "moderate" as Severity : "low" as Severity, x: 8 + ((i * 17) % 84), y: 12 + ((i * 23) % 78) }));
