@@ -125,3 +125,13 @@ Inspect progress without loading PyTorch:
 ```bash
 npm run model:status
 ```
+
+Measure the production selection rule, where the farmer's chosen crop masks
+unrelated labels, against the held-out test set:
+
+```bash
+npm run model:evaluate-crop-filter
+```
+
+This writes `metrics/test_crop_filtered.json` plus matching per-class and
+confusion-matrix CSV files without changing the cached checkpoint.

@@ -349,6 +349,7 @@ def evaluate(
     criterion: nn.Module,
     device: torch.device,
     labels: list[str],
+    restrict_to_crop: bool = False,
 ) -> tuple[dict[str, Any], np.ndarray, list[dict[str, Any]]]:
     model.eval()
     confusion = np.zeros((len(labels), len(labels)), dtype=np.int64)
@@ -356,12 +357,25 @@ def evaluate(
     sample_count = 0
     top3_correct = 0
     groups: dict[tuple[str, str], list[int]] = defaultdict(lambda: [0, 0])
+    evaluation_criterion = nn.CrossEntropyLoss() if restrict_to_crop else criterion
 
     for images, targets, crops, sources in loader:
         images = images.to(device, non_blocking=device.type == "cuda")
         targets = targets.to(device, non_blocking=device.type == "cuda")
         logits = model(images)
-        loss = criterion(logits, targets)
+        if restrict_to_crop:
+            allowed = torch.tensor(
+                [
+                    [label.startswith(f"{crop}__") for label in labels]
+                    for crop in crops
+                ],
+                dtype=torch.bool,
+                device=device,
+            )
+            logits = logits.masked_fill(~allowed, torch.finfo(logits.dtype).min)
+        # Label smoothing assigns probability mass to masked-out classes and
+        # makes crop-conditioned loss meaningless, so use plain NLL there.
+        loss = evaluation_criterion(logits, targets)
         predictions = logits.argmax(dim=1)
         top3 = logits.topk(min(3, len(labels)), dim=1).indices
         top3_correct += int((top3 == targets.unsqueeze(1)).any(dim=1).sum().item())
@@ -384,6 +398,7 @@ def evaluate(
             "loss": losses / max(sample_count, 1),
             "top3_accuracy": top3_correct / max(sample_count, 1),
             "samples": sample_count,
+            "crop_filtering": restrict_to_crop,
         }
     )
     per_class = [
