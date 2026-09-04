@@ -157,3 +157,33 @@ npm run model:evaluate-plantdoc-screened
 
 This does not replace or edit the original model-v1 manifests. Results and the
 policy rationale are documented in `docs/model/plantdoc-curation-v1.md`.
+
+## Crop-specific classifier heads
+
+The second candidate architecture keeps one shared EfficientNetV2-S backbone
+and gives each supported crop its own condition head. It initializes the shared
+features and every head from the epoch-6 global `best.pt`, so its initial output
+exactly matches crop-filtered global inference.
+
+Verify that initialization remains numerically equivalent:
+
+```bash
+npm run model:verify-crop-heads
+```
+
+Run the tiny end-to-end pipeline check once, then start the real resumable run:
+
+```bash
+npm run model:smoke-crop-heads
+npm run model:train-crop-heads
+```
+
+The real run writes ignored checkpoints and reports beneath
+`models/artifacts/wellfarm-v1/efficientnetv2-s-crop-heads-v1`. Its defaults are
+one head-only refinement epoch followed by up to three full-backbone epochs.
+Repeat the same command after an interruption to resume. Use a new `--run-name`
+instead of silently changing cached training settings.
+
+The smoke command deliberately uses only two images per label at 96px. Its
+accuracy is not a model-quality result; it only verifies loading, gradients,
+checkpointing, validation, and test reporting.
