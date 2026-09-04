@@ -329,12 +329,16 @@ def metrics_from_confusion(confusion: np.ndarray) -> dict[str, Any]:
     precision = np.divide(true_positive, predicted, out=np.zeros_like(true_positive), where=predicted > 0)
     recall = np.divide(true_positive, support, out=np.zeros_like(true_positive), where=support > 0)
     f1 = np.divide(2 * precision * recall, precision + recall, out=np.zeros_like(precision), where=(precision + recall) > 0)
+    present = support > 0
+    if not present.any():
+        present = np.ones_like(support, dtype=bool)
     return {
         "accuracy": float(true_positive.sum() / max(confusion.sum(), 1)),
-        "balanced_accuracy": float(recall.mean()),
-        "macro_precision": float(precision.mean()),
-        "macro_recall": float(recall.mean()),
-        "macro_f1": float(f1.mean()),
+        "balanced_accuracy": float(recall[present].mean()),
+        "macro_precision": float(precision[present].mean()),
+        "macro_recall": float(recall[present].mean()),
+        "macro_f1": float(f1[present].mean()),
+        "classes_with_support": int(present.sum()),
         "precision": precision,
         "recall": recall,
         "f1": f1,

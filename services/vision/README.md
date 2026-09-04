@@ -145,3 +145,15 @@ npm run model:audit-plantdoc
 
 The generated machine-readable audit stays beside the ignored model artifacts.
 The reviewed findings are documented in `docs/model/plantdoc-audit-v1.md`.
+
+Generate the non-destructive review manifest and conservative screened
+benchmark from the tracked curation policy, then evaluate the existing best
+checkpoint against it:
+
+```bash
+npm run model:curate-plantdoc
+npm run model:evaluate-plantdoc-screened
+```
+
+This does not replace or edit the original model-v1 manifests. Results and the
+policy rationale are documented in `docs/model/plantdoc-curation-v1.md`.

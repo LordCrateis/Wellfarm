@@ -1,0 +1,21 @@
+{
+  "version": "plantdoc-curation-v1",
+  "policy": "Conservative class-level screening after automated and deterministic visual audit. Review items remain in the original stress test but are excluded from the screened benchmark until reviewed image by image.",
+  "rules": {
+    "Corn Gray leaf spot": {"action": "keep", "label": "maize__gray_leaf_spot", "reason": "Source concept matches the Wellfarm ontology; known contradictory exact hashes are already excluded upstream."},
+    "Corn leaf blight": {"action": "relabel", "label": "maize__northern_leaf_blight", "reason": "Published PlantDoc cross-dataset work and visual samples identify this class as Northern Leaf Blight."},
+    "Corn rust leaf": {"action": "review", "label": "maize__common_rust", "reason": "The generic source folder includes filenames referring to southern rust, so common-rust ground truth is not trustworthy without per-image review."},
+    "Potato leaf early blight": {"action": "review", "label": "potato__early_blight", "reason": "Several exact-image early-vs-late contradictions and visually ambiguous web images require per-image review."},
+    "Potato leaf late blight": {"action": "review", "label": "potato__late_blight", "reason": "Several exact-image early-vs-late contradictions and visually ambiguous web images require per-image review."},
+    "Soyabean leaf": {"action": "review", "label": "soybean__healthy", "reason": "The generic folder is currently interpreted as healthy but visual samples contain symptomatic and yellowing leaves."},
+    "Tomato Early blight leaf": {"action": "keep", "label": "tomato__early_blight", "reason": "Source concept maps directly; retained provisionally for the screened external benchmark."},
+    "Tomato leaf": {"action": "review", "label": "tomato__healthy", "reason": "The generic folder is currently interpreted as healthy but samples include stressed and potentially wrong-species leaves."},
+    "Tomato leaf bacterial spot": {"action": "review", "label": "tomato__bacterial_spot", "reason": "Very low cross-domain recall plus a known bacterial-spot-vs-Septoria duplicate contradiction requires per-image review."},
+    "Tomato leaf late blight": {"action": "keep", "label": "tomato__late_blight", "reason": "Source concept maps directly; retained provisionally for the screened external benchmark."},
+    "Tomato leaf mosaic virus": {"action": "review", "label": "tomato__mosaic_virus", "reason": "Very low cross-domain recall and visually overlapping viral symptoms require per-image review."},
+    "Tomato leaf yellow virus": {"action": "keep", "label": "tomato__yellow_leaf_curl_virus", "reason": "Source concept and sampled symptoms are consistent with the Wellfarm label."},
+    "Tomato mold leaf": {"action": "keep", "label": "tomato__leaf_mold", "reason": "Source concept maps directly; retained provisionally for the screened external benchmark."},
+    "Tomato Septoria leaf spot": {"action": "keep", "label": "tomato__septoria_leaf_spot", "reason": "Source concept maps directly; known contradictory exact hashes are already excluded upstream."},
+    "Tomato two spotted spider mites leaf": {"action": "exclude", "label": "tomato__two_spotted_spider_mite", "reason": "Only two surviving files exist and both are multi-condition comparison collages rather than independent mite examples."}
+  }
+}

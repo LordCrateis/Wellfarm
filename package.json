@@ -11,6 +11,8 @@
     "model:smoke": "node services/vision/scripts/run_python.mjs services/vision/scripts/train_model.py --run-name smoke --epochs 1 --head-epochs 1 --image-size 160 --limit-per-class 8 --checkpoint-every-batches 10",
     "model:status": "node services/vision/scripts/run_python.mjs services/vision/scripts/inspect_run.py",
     "model:evaluate-crop-filter": "node services/vision/scripts/run_python.mjs services/vision/scripts/evaluate_checkpoint.py",
-    "model:audit-plantdoc": "node services/vision/scripts/run_python.mjs services/vision/scripts/audit_plantdoc.py"
+    "model:audit-plantdoc": "node services/vision/scripts/run_python.mjs services/vision/scripts/audit_plantdoc.py",
+    "model:curate-plantdoc": "node services/vision/scripts/run_python.mjs services/vision/scripts/curate_plantdoc.py",
+    "model:evaluate-plantdoc-screened": "node services/vision/scripts/run_python.mjs services/vision/scripts/evaluate_checkpoint.py --manifest data/processed/wellfarm-v1/plantdoc-screened-test-v1.csv --report-name plantdoc_screened_v1"
   }
 }

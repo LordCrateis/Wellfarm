@@ -31,6 +31,8 @@ def main() -> int:
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--run-name", default="efficientnetv2-s-v1")
     parser.add_argument("--checkpoint", choices=("best.pt", "last.pt"), default="best.pt")
+    parser.add_argument("--manifest", type=Path, default=None)
+    parser.add_argument("--report-name", default="test_crop_filtered")
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
@@ -41,7 +43,8 @@ def main() -> int:
     label_document = json.loads((run_dir / "label_map.json").read_text(encoding="utf-8"))
     labels: list[str] = label_document["labels"]
     label_to_index: dict[str, int] = label_document["label_to_index"]
-    samples = read_manifest(args.dataset_dir / "test.csv")
+    manifest_path = args.manifest or (args.dataset_dir / "test.csv")
+    samples = read_manifest(manifest_path)
 
     if args.device == "auto":
         args.device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -77,7 +80,8 @@ def main() -> int:
             "selection_rule": "highest-scoring labels belonging to the farmer-provided crop",
         }
     )
-    write_evaluation(run_dir, "test_crop_filtered", summary, confusion, per_class, labels)
+    summary["manifest"] = str(manifest_path.resolve())
+    write_evaluation(run_dir, args.report_name, summary, confusion, per_class, labels)
     print(json.dumps(summary, indent=2, sort_keys=True))
     return 0
 
