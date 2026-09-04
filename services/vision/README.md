@@ -135,3 +135,13 @@ npm run model:evaluate-crop-filter
 
 This writes `metrics/test_crop_filtered.json` plus matching per-class and
 confusion-matrix CSV files without changing the cached checkpoint.
+
+Audit the PlantDoc field holdout's image integrity, mappings, contradictory
+duplicates, class support, and deterministic visual samples:
+
+```bash
+npm run model:audit-plantdoc
+```
+
+The generated machine-readable audit stays beside the ignored model artifacts.
+The reviewed findings are documented in `docs/model/plantdoc-audit-v1.md`.
