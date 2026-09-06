@@ -1,9 +1,11 @@
+import { LocalizedContent } from "@/i18n/TranslationProvider";
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import type { Crop, Scan } from "@workspace/api-client-react";
 import { Link, useLocation, useParams } from "wouter";
 import {
   ArrowRight,
+  ArrowLeft,
   ArrowUpRight,
   BarChart3,
   Camera,
@@ -52,6 +54,7 @@ import { Brand } from "@/components/Brand";
 import { AppShell, LanguageSelect, PublicNav } from "@/components/AppShell";
 import { WellfarmMap } from "@/components/WellfarmMap";
 import { ScanResultCard } from "@/components/ScanResultCard";
+import { BackLink } from "@/components/BackLink";
 import {
   MiniBar,
   Provenance,
@@ -64,6 +67,7 @@ import type { ScanAnalysisResult } from "@/services/scan-analysis";
 import {
   requestAdvisoryExplanation,
   type AdvisoryExplanation,
+  type AdvisoryContext,
 } from "@/services/advisory";
 
 const Button = ({
@@ -88,7 +92,7 @@ const Button = ({
       window.alert(
         "This control is not connected yet. Its local adapter is ready for implementation.",
       ));
-  return href ? (
+  return <LocalizedContent>{href ? (
     <Link href={href} className={cls} data-testid={testId}>
       {children}
     </Link>
@@ -101,19 +105,22 @@ const Button = ({
     >
       {children}
     </button>
-  );
+  )}</LocalizedContent>;
 };
 const PageHeader = ({
   eyebrow,
   title,
   children,
+  back,
 }: {
   eyebrow: string;
   title: string;
   children?: ReactNode;
-}) => (
+  back?: ReactNode;
+}) => <LocalizedContent>{(
   <div className="mb-8 flex flex-col gap-5 border-b border-[hsl(var(--border))] pb-7 md:flex-row md:items-end md:justify-between">
     <div>
+      {back ?? <BackLink />}
       <div className="mb-2 font-mono text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">
         {eyebrow}
       </div>
@@ -123,7 +130,7 @@ const PageHeader = ({
     </div>
     {children}
   </div>
-);
+)}</LocalizedContent>;
 const Metric = ({
   label,
   value,
@@ -134,7 +141,7 @@ const Metric = ({
   value: string;
   note?: string;
   tone?: "default" | "amber" | "red";
-}) => (
+}) => <LocalizedContent>{(
   <div
     className={`border-l-2 pl-4 ${tone === "amber" ? "border-[hsl(var(--accent))]" : tone === "red" ? "border-[hsl(4_48%_44%)]" : "border-[hsl(var(--primary))]"}`}
   >
@@ -150,23 +157,23 @@ const Metric = ({
       </div>
     )}
   </div>
-);
+)}</LocalizedContent>;
 const Box = ({
   children,
   className = "",
 }: {
   children: ReactNode;
   className?: string;
-}) => (
+}) => <LocalizedContent>{(
   <section
     className={`border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 shadow-sm ${className}`}
   >
     {children}
   </section>
-);
+)}</LocalizedContent>;
 
-function formatScanDate(value: string): string {
-  return new Intl.DateTimeFormat(undefined, {
+function formatScanDate(value: string, locale: LocaleKey): string {
+  return new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
@@ -198,14 +205,14 @@ function ScanStatusBadge({ status }: { status: Scan["status"] }) {
       "border-[hsl(4_48%_55%)] bg-[hsl(4_48%_44%/_.12)] text-[hsl(4_48%_36%)]",
   };
 
-  return (
+  return <LocalizedContent>{(
     <span
       className={`inline-flex rounded-md border px-2.5 py-1 text-[11px] font-bold uppercase tracking-[.08em] ${classes[status]}`}
       data-testid={`status-scan-${status}`}
     >
       {labels[status]}
     </span>
-  );
+  )}</LocalizedContent>;
 }
 
 export function PublicHome({
@@ -215,8 +222,8 @@ export function PublicHome({
   locale: LocaleKey;
   setLocale: (v: LocaleKey) => void;
 }) {
-  const t = locales[locale];
-  return (
+  const t = locales.en;
+  return <LocalizedContent>{(
     <div className="wf-noise min-h-[100dvh]">
       <PublicNav locale={locale} setLocale={setLocale} />
       <section className="mx-auto grid max-w-[1240px] gap-10 px-5 pb-20 pt-14 md:pt-20 lg:grid-cols-[1.02fr_.98fr] lg:items-center lg:px-8 lg:pb-28">
@@ -411,7 +418,7 @@ export function PublicHome({
         </Link>
       </footer>
     </div>
-  );
+  )}</LocalizedContent>;
 }
 
 export function Roles({
@@ -421,7 +428,7 @@ export function Roles({
   locale: LocaleKey;
   setLocale: (v: LocaleKey) => void;
 }) {
-  const t = locales[locale];
+  const t = locales.en;
   const roles = [
     {
       title: t.nav.farmers,
@@ -438,13 +445,14 @@ export function Roles({
       icon: BarChart3,
     },
   ];
-  return (
+  return <LocalizedContent>{(
     <div className="min-h-[100dvh] bg-[hsl(var(--background))]">
       <header className="mx-auto flex max-w-[1240px] items-center justify-between px-5 py-6 lg:px-8">
         <Brand />
         <LanguageSelect locale={locale} setLocale={setLocale} />
       </header>
       <main className="mx-auto max-w-[1080px] px-5 pb-20 pt-12 lg:px-8">
+        <BackLink />
         <div className="max-w-xl">
           <div className="font-mono text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">
             Wellfarm workspace
@@ -489,7 +497,7 @@ export function Roles({
         </div>
       </main>
     </div>
-  );
+  )}</LocalizedContent>;
 }
 
 export function FarmerHome({
@@ -499,7 +507,7 @@ export function FarmerHome({
   locale: LocaleKey;
   setLocale: (v: LocaleKey) => void;
 }) {
-  const t = locales[locale];
+  const t = locales.en;
   const [fieldWeather, setFieldWeather] = useState<DisplayWeather>({
     ...weather,
     freshness: "sample",
@@ -537,7 +545,7 @@ export function FarmerHome({
     };
   }, []);
 
-  return (
+  return <LocalizedContent>{(
     <AppShell role="farmer" locale={locale} setLocale={setLocale}>
       <PageHeader eyebrow="Farmer fieldbook / 01" title={t.farmer.hello}>
         <Button href="/farmer/scan" testId="button-farmer-scan">
@@ -661,10 +669,10 @@ export function FarmerHome({
                   </div>
                   <div className="min-w-0">
                     <div className="truncate text-sm font-bold">
-                      {scan.crop} scan
+                      {`${scan.crop} scan`}
                     </div>
                     <div className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">
-                      {scanSummary(scan)} · {formatScanDate(scan.createdAt)}
+                      {scanSummary(scan)} · {formatScanDate(scan.createdAt, locale)}
                     </div>
                   </div>
                 </div>
@@ -699,7 +707,7 @@ export function FarmerHome({
         </Box>
       </div>
     </AppShell>
-  );
+  )}</LocalizedContent>;
 }
 
 export function ScanJourney({
@@ -709,7 +717,7 @@ export function ScanJourney({
   locale: LocaleKey;
   setLocale: (v: LocaleKey) => void;
 }) {
-  const t = locales[locale];
+  const t = locales.en;
   const hasMobileCamera = useMobileCamera();
   const [step, setStep] = useState(1);
   const [crop, setCrop] = useState<Crop>("Rice");
@@ -734,6 +742,21 @@ export function ScanJourney({
   const [explanation, setExplanation] = useState<AdvisoryExplanation | null>(
     null,
   );
+  const [advisoryContext, setAdvisoryContext] = useState<AdvisoryContext | null>(null);
+
+  useEffect(() => {
+    if (!result || !advisoryContext || advisoryContext.locale === locale) return;
+    let active = true;
+    setExplanation(null);
+    const nextContext = { ...advisoryContext, locale };
+    requestAdvisoryExplanation(result, nextContext).then(next => {
+      if (active) {
+        setExplanation(next);
+        setAdvisoryContext(nextContext);
+      }
+    });
+    return () => { active = false; };
+  }, [locale, result, advisoryContext]);
 
   useEffect(() => {
     if (!photo) {
@@ -816,19 +839,21 @@ export function ScanJourney({
         location.longitude,
       );
       const diagnosis = await analyzeCropScan(crop);
-      const advisory = await requestAdvisoryExplanation(diagnosis, {
+      const context: AdvisoryContext = {
         symptoms: symptomList,
         affectedPart,
         affectedAreaPercentage: areaPercentages[affectedArea],
         nearbyPlantsAffected,
         weather: weatherContext,
         locale,
-      });
+      };
+      const advisory = await requestAdvisoryExplanation(diagnosis, context);
 
       setSavedScanId(scan.id);
       setScanWeather(weatherContext);
       setResult(diagnosis);
       setExplanation(advisory);
+      setAdvisoryContext(context);
       setStep(4);
     } catch {
       setSubmissionError(
@@ -843,15 +868,21 @@ export function ScanJourney({
     setPhoto(null);
     setResult(null);
     setExplanation(null);
+    setAdvisoryContext(null);
     setSavedScanId(null);
     setScanWeather(null);
     setSubmissionError(null);
     setStep(1);
   };
-  return (
+  return <LocalizedContent>{(
     <AppShell role="farmer" locale={locale} setLocale={setLocale}>
       <PageHeader
         eyebrow={`Farmer scan / 0${step}`}
+        back={step > 1 ? (
+          <button type="button" data-testid="button-scan-back" disabled={analysis} onClick={() => setStep(step - 1)} className="mb-4 inline-flex min-h-11 items-center gap-2 rounded-md px-2 text-sm font-semibold text-[hsl(var(--primary))] hover:bg-[hsl(var(--muted))] disabled:opacity-50">
+            <ArrowLeft size={16} aria-hidden="true" />Back
+          </button>
+        ) : undefined}
         title={result ? t.farmer.result : t.farmer.scanTitle}
       >
         <Link
@@ -1275,7 +1306,7 @@ export function ScanJourney({
         )}
       </div>
     </AppShell>
-  );
+  )}</LocalizedContent>;
 }
 
 export function FarmerHistory({
@@ -1335,7 +1366,7 @@ export function FarmerHistory({
   }, [selectedScan]);
 
   if (id) {
-    return (
+    return <LocalizedContent>{(
       <AppShell role="farmer" locale={locale} setLocale={setLocale}>
         <PageHeader
           eyebrow="Farmer fieldbook / saved scan"
@@ -1410,7 +1441,7 @@ export function FarmerHistory({
                 <div className="mt-6 grid gap-4 border-y border-[hsl(var(--border))] py-5 sm:grid-cols-2">
                   <Metric
                     label="Submitted"
-                    value={formatScanDate(selectedScan.createdAt)}
+                    value={formatScanDate(selectedScan.createdAt, locale)}
                   />
                   <Metric
                     label="Approximate area"
@@ -1458,7 +1489,7 @@ export function FarmerHistory({
                       Farmer notes
                     </div>
                     <p className="mt-2 text-sm leading-6 text-[hsl(var(--muted-foreground))]">
-                      {selectedScan.notes}
+                      <span translate="no">{selectedScan.notes}</span>
                     </p>
                   </div>
                 )}
@@ -1484,10 +1515,10 @@ export function FarmerHistory({
           </div>
         )}
       </AppShell>
-    );
+    )}</LocalizedContent>;
   }
 
-  return (
+  return <LocalizedContent>{(
     <AppShell role="farmer" locale={locale} setLocale={setLocale}>
       <PageHeader
         eyebrow="Farmer fieldbook / history"
@@ -1560,7 +1591,7 @@ export function FarmerHistory({
                       </div>
                     </td>
                     <td className="py-4 pr-4 text-xs text-[hsl(var(--muted-foreground))]">
-                      {formatScanDate(scan.createdAt)}
+                      {formatScanDate(scan.createdAt, locale)}
                     </td>
                     <td className="py-4 pr-4">
                       <ScanStatusBadge status={scan.status} />
@@ -1585,10 +1616,10 @@ export function FarmerHistory({
         )}
       </Box>
     </AppShell>
-  );
+  )}</LocalizedContent>;
 }
 function InsightTabs({ active }: { active: string }) {
-  return (
+  return <LocalizedContent>{(
     <div className="mb-7 flex gap-1 overflow-x-auto border-b border-[hsl(var(--border))]">
       {[
         ["overview", "Overview", "/insights"],
@@ -1604,10 +1635,10 @@ function InsightTabs({ active }: { active: string }) {
         </Link>
       ))}
     </div>
-  );
+  )}</LocalizedContent>;
 }
 function IndiaSignalMap() {
-  return (
+  return <LocalizedContent>{(
     <WellfarmMap
       ariaLabel="Map of sample district crop-health signals across India"
       className="h-[390px] sm:h-[460px]"
@@ -1621,7 +1652,7 @@ function IndiaSignalMap() {
         severity: district.severity,
       }))}
     />
-  );
+  )}</LocalizedContent>;
 }
 export function RegionalOverview({
   locale,
@@ -1630,7 +1661,7 @@ export function RegionalOverview({
   locale: LocaleKey;
   setLocale: (v: LocaleKey) => void;
 }) {
-  return (
+  return <LocalizedContent>{(
     <AppShell role="insights" locale={locale} setLocale={setLocale}>
       <PageHeader
         eyebrow="Regional insights / national overview"
@@ -1639,7 +1670,7 @@ export function RegionalOverview({
         <div className="flex flex-wrap gap-2">
           <Provenance kind="sample" />
           <span className="text-xs text-[hsl(var(--muted-foreground))]">
-            {locales[locale].insights.updated}
+            {locales.en.insights.updated}
           </span>
         </div>
       </PageHeader>
@@ -1778,7 +1809,7 @@ export function RegionalOverview({
         </Box>
       </div>
     </AppShell>
-  );
+  )}</LocalizedContent>;
 }
 
 export function RegionalIntelligence({
@@ -1788,7 +1819,7 @@ export function RegionalIntelligence({
   locale: LocaleKey;
   setLocale: (v: LocaleKey) => void;
 }) {
-  return (
+  return <LocalizedContent>{(
     <AppShell role="insights" locale={locale} setLocale={setLocale}>
       <PageHeader
         eyebrow="Regional insights / pattern analysis"
@@ -1938,7 +1969,7 @@ export function RegionalIntelligence({
         </div>
       </Box>
     </AppShell>
-  );
+  )}</LocalizedContent>;
 }
 
 export function RegionalDistrict({
@@ -1952,7 +1983,7 @@ export function RegionalDistrict({
   const district =
     districtSummaries.find((d) => d.district.toLowerCase() === id) ??
     districtSummaries[0];
-  return (
+  return <LocalizedContent>{(
     <AppShell role="insights" locale={locale} setLocale={setLocale}>
       <PageHeader
         eyebrow={`Regional insights / district · ${district.state}`}
@@ -2095,7 +2126,7 @@ export function RegionalDistrict({
         </div>
       </Box>
     </AppShell>
-  );
+  )}</LocalizedContent>;
 }
 export function Transparency({
   locale,
@@ -2126,7 +2157,7 @@ export function Transparency({
       text: "Scans saved through the local API remain in the user's fieldbook. Wellfarm does not submit them to another organization.",
     },
   ];
-  return (
+  return <LocalizedContent>{(
     <div className="min-h-[100dvh]">
       <PublicNav locale={locale} setLocale={setLocale} />
       <main className="mx-auto max-w-[1100px] px-5 py-14 lg:px-8">
@@ -2203,5 +2234,5 @@ export function Transparency({
         </Box>
       </main>
     </div>
-  );
+  )}</LocalizedContent>;
 }
