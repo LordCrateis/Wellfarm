@@ -1,3 +1,4 @@
+import { LocalizedContent } from "@/i18n/TranslationProvider";
 import {
   Component,
   type ComponentType,
@@ -36,7 +37,7 @@ function toError(value: unknown): Error {
 }
 
 function DefaultFallback({ error, resetError }: ErrorFallbackProps) {
-  return (
+  return <LocalizedContent>{(
     <div className="min-h-screen w-full flex items-center justify-center bg-gray-50 p-6">
       <div className="max-w-lg w-full text-center">
         <h1 className="text-xl font-semibold text-gray-900">
@@ -61,7 +62,7 @@ function DefaultFallback({ error, resetError }: ErrorFallbackProps) {
         </button>
       </div>
     </div>
-  );
+  )}</LocalizedContent>;
 }
 
 export class ErrorBoundary extends Component<
