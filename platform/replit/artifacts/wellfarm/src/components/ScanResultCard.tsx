@@ -13,10 +13,12 @@ import {
 } from "lucide-react";
 import { Provenance, SeverityBadge } from "@/components/Status";
 import type { DisplayWeather } from "@/services/adapters";
+import type { AdvisoryExplanation } from "@/services/advisory";
 import type { ScanAnalysisResult } from "@/services/scan-analysis";
 
 interface ScanResultCardProps {
   result: ScanAnalysisResult;
+  explanation?: AdvisoryExplanation;
   scanId: string | null;
   imageUrl: string | null;
   locationLabel: string;
@@ -48,6 +50,7 @@ function confidenceLabel(value: number): string {
 
 export function ScanResultCard({
   result,
+  explanation,
   scanId,
   imageUrl,
   locationLabel,
@@ -57,6 +60,16 @@ export function ScanResultCard({
   const primary = result.candidates[0];
   const isPreview = result.mode === "preview";
   const lowConfidence = primary.confidence < 0.6;
+  const guidance: AdvisoryExplanation = explanation ?? {
+    source: "fallback",
+    model: null,
+    summary: result.summary,
+    uncertainty:
+      "Different crop conditions can look similar in a single photograph.",
+    nextSteps: result.safeActions,
+    safetyNote: result.limitations[0],
+    generatedAt: new Date().toISOString(),
+  };
 
   return (
     <div className="space-y-5" data-testid="scan-result">
@@ -94,6 +107,13 @@ export function ScanResultCard({
               <Provenance kind={isPreview ? "sample" : "model"}>
                 {isPreview ? "Preview data" : result.model.version}
               </Provenance>
+              <Provenance
+                kind={guidance.source === "gemini" ? "model" : "local"}
+              >
+                {guidance.source === "gemini"
+                  ? "Gemini explanation"
+                  : "Local explanation"}
+              </Provenance>
             </div>
           </div>
           <div className="min-w-32 border-l-2 border-[hsl(var(--primary))] pl-4">
@@ -127,7 +147,7 @@ export function ScanResultCard({
           <div>
             <h3 className="font-bold">What this result means</h3>
             <p className="mt-2 text-sm leading-7 text-[hsl(var(--muted-foreground))]">
-              {result.summary}
+              {guidance.summary}
             </p>
             <div className="mt-4 border-l-2 border-[hsl(var(--accent))] pl-4">
               <div className="text-xs font-bold uppercase tracking-[.08em]">
@@ -135,6 +155,14 @@ export function ScanResultCard({
               </div>
               <p className="mt-1 text-sm leading-6 text-[hsl(var(--muted-foreground))]">
                 {result.severityBasis}
+              </p>
+            </div>
+            <div className="mt-4 border-l-2 border-[hsl(var(--border))] pl-4">
+              <div className="text-xs font-bold uppercase tracking-[.08em]">
+                Why it may be uncertain
+              </div>
+              <p className="mt-1 text-sm leading-6 text-[hsl(var(--muted-foreground))]">
+                {guidance.uncertainty}
               </p>
             </div>
           </div>
@@ -226,7 +254,7 @@ export function ScanResultCard({
             Safe next actions
           </h3>
           <ul className="mt-4 space-y-3 text-sm leading-6 text-[hsl(var(--muted-foreground))]">
-            {result.safeActions.map((action) => (
+            {guidance.nextSteps.map((action) => (
               <li key={action} className="border-l-2 border-[hsl(var(--primary))] pl-3">
                 {action}
               </li>
@@ -239,6 +267,9 @@ export function ScanResultCard({
             Important limitations
           </h3>
           <ul className="mt-4 space-y-3 text-sm leading-6 text-[hsl(var(--muted-foreground))]">
+            <li className="border-l-2 border-[hsl(4_48%_55%)] pl-3 font-semibold text-[hsl(var(--foreground))]">
+              {guidance.safetyNote}
+            </li>
             {result.limitations.map((limitation) => (
               <li key={limitation} className="border-l-2 border-[hsl(var(--accent))] pl-3">
                 {limitation}
