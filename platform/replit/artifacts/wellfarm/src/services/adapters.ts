@@ -154,17 +154,7 @@ export const sampleLocation: BrowserLocation = {
 
 export const analyzeCropScan = async (
   crop: CreateScanInput["crop"],
-): Promise<
-  ScanAnalysisResult & {
-    condition: string;
-    confidence: number;
-  }
-> => {
+): Promise<ScanAnalysisResult> => {
   await new Promise((resolve) => setTimeout(resolve, 500));
-  const analysis = createPreviewAnalysis(crop);
-  return {
-    ...analysis,
-    condition: analysis.candidates[0].condition,
-    confidence: analysis.candidates[0].confidence,
-  };
+  return createPreviewAnalysis(crop);
 };
