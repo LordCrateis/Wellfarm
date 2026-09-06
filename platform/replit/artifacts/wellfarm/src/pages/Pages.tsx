@@ -5,7 +5,6 @@ import { Link, useLocation, useParams } from "wouter";
 import {
   ArrowRight,
   ArrowUpRight,
-  BadgeCheck,
   BarChart3,
   Camera,
   Check,
@@ -52,6 +51,7 @@ import {
 import { Brand } from "@/components/Brand";
 import { AppShell, LanguageSelect, PublicNav } from "@/components/AppShell";
 import { WellfarmMap } from "@/components/WellfarmMap";
+import { ScanResultCard } from "@/components/ScanResultCard";
 import {
   MiniBar,
   Provenance,
@@ -60,6 +60,7 @@ import {
 } from "@/components/Status";
 import { languageNames, locales, type LocaleKey } from "@/i18n/locales";
 import { useMobileCamera } from "@/hooks/use-mobile-camera";
+import type { ScanAnalysisResult } from "@/services/scan-analysis";
 
 const Button = ({
   children,
@@ -725,11 +726,7 @@ export function ScanJourney({
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [savedScanId, setSavedScanId] = useState<string | null>(null);
   const [scanWeather, setScanWeather] = useState<DisplayWeather | null>(null);
-  const [result, setResult] = useState<{
-    condition: string;
-    confidence: number;
-    severity: Severity;
-  } | null>(null);
+  const [result, setResult] = useState<ScanAnalysisResult | null>(null);
 
   useEffect(() => {
     if (!photo) {
@@ -822,6 +819,15 @@ export function ScanJourney({
     } finally {
       setAnalysis(false);
     }
+  };
+
+  const retryWithAnotherPhoto = () => {
+    setPhoto(null);
+    setResult(null);
+    setSavedScanId(null);
+    setScanWeather(null);
+    setSubmissionError(null);
+    setStep(1);
   };
   return (
     <AppShell role="farmer" locale={locale} setLocale={setLocale}>
@@ -1203,7 +1209,7 @@ export function ScanJourney({
               </div>
               <div className="mt-8 space-y-5">
                 {[
-                  "Image quality check · clear enough to review",
+                  "Image quality check · preparing photograph",
                   `Crop compatibility · ${crop.toLowerCase()} head selected`,
                   "Visual diagnosis · comparing leaf patterns",
                   "Weather retrieval · humidity and rainfall context",
@@ -1237,156 +1243,18 @@ export function ScanJourney({
             </div>
           </Box>
         )}
-        {result && (
-          <ResultCard
+        {step === 4 && result && (
+          <ScanResultCard
             result={result}
             scanId={savedScanId}
+            imageUrl={photoPreview}
+            locationLabel={location?.label ?? "Approximate location unavailable"}
             weatherContext={scanWeather}
+            onRetry={retryWithAnotherPhoto}
           />
         )}
       </div>
     </AppShell>
-  );
-}
-function ResultCard({
-  result,
-  scanId,
-  weatherContext,
-}: {
-  result: { condition: string; confidence: number; severity: Severity };
-  scanId: string | null;
-  weatherContext: DisplayWeather | null;
-}) {
-  return (
-    <div className="space-y-5">
-      <Box className="border-t-4 border-t-[hsl(var(--primary))]">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <div className="font-mono text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">
-              Result · early indication
-            </div>
-            <h2 className="mt-2 text-3xl font-extrabold tracking-[-.04em]">
-              {result.condition}
-            </h2>
-          </div>
-          <SeverityBadge severity={result.severity} />
-        </div>
-        <div className="mt-7 grid gap-5 border-y border-[hsl(var(--border))] py-5 sm:grid-cols-3">
-          <Metric
-            label="Model confidence"
-            value={`${Math.round(result.confidence * 100)}%`}
-            note="Not independently confirmed"
-          />
-          <Metric
-            label="Image quality"
-            value="Good"
-            note="Suitable for review"
-          />
-          <Metric
-            label="Model version"
-            value="WF-Vision 0.8"
-            note="Versioned vision model"
-          />
-        </div>
-        <p className="mt-6 max-w-2xl text-sm leading-7 text-[hsl(var(--muted-foreground))]">
-          The leaf pattern is visually consistent with bacterial leaf blight.
-          Similar reports have been seen in the Cuttack cluster, but other
-          causes remain possible and need expert review.
-        </p>
-        <div className="mt-5 flex flex-wrap gap-2">
-          <Provenance kind="model" />
-          <Provenance kind="sample">Sample comparison context</Provenance>
-          {weatherContext && (
-            <Provenance
-              kind={
-                weatherContext.freshness === "live"
-                  ? "live"
-                  : weatherContext.freshness === "cached"
-                    ? "cache"
-                    : "sample"
-              }
-            >
-              {weatherContext.source}
-            </Provenance>
-          )}
-        </div>
-      </Box>
-      <div className="grid gap-5 md:grid-cols-2">
-        <Box>
-          <h3 className="flex items-center gap-2 font-bold">
-            <Check size={17} className="text-[hsl(var(--primary))]" />
-            Safe immediate actions
-          </h3>
-          <ul className="mt-4 space-y-3 text-sm leading-6 text-[hsl(var(--muted-foreground))]">
-            <li className="border-l-2 border-[hsl(var(--primary))] pl-3">
-              Mark and observe affected plants separately.
-            </li>
-            <li className="border-l-2 border-[hsl(var(--primary))] pl-3">
-              Take a second clear photo in daylight after checking nearby
-              plants.
-            </li>
-            <li className="border-l-2 border-[hsl(var(--primary))] pl-3">
-              Share the scan with an agricultural expert if symptoms spread.
-            </li>
-          </ul>
-        </Box>
-        <Box>
-          <h3 className="flex items-center gap-2 font-bold">
-            <ShieldAlert
-              size={17}
-              className="text-[hsl(var(--accent-foreground))]"
-            />
-            What to avoid
-          </h3>
-          <ul className="mt-4 space-y-3 text-sm leading-6 text-[hsl(var(--muted-foreground))]">
-            <li className="border-l-2 border-[hsl(var(--accent))] pl-3">
-              Do not treat this as a confirmed diagnosis.
-            </li>
-            <li className="border-l-2 border-[hsl(var(--accent))] pl-3">
-              Do not apply a chemical product based only on this screen.
-            </li>
-            <li className="border-l-2 border-[hsl(var(--accent))] pl-3">
-              Contact an expert when multiple plants are affected.
-            </li>
-          </ul>
-        </Box>
-      </div>
-      <Box>
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <div className="font-bold">
-              A verification centre is recommended
-            </div>
-            <p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">
-              Odisha Crop Health Centre · 18 km · rice disease microscopy and
-              field visit.
-            </p>
-            <div className="mt-3 flex gap-2">
-              <Provenance kind="sample" />
-              <span className="text-xs text-[hsl(var(--muted-foreground))]">
-                Selected by crop capability and approximate distance
-              </span>
-            </div>
-          </div>
-          <Button href="/transparency" testId="button-view-methodology">
-            Review methodology <ArrowRight size={16} />
-          </Button>
-        </div>
-      </Box>
-      <Box className="bg-[hsl(112_22%_81%/_.3)]">
-        <div className="flex gap-3">
-          <BadgeCheck className="mt-1 text-[hsl(var(--primary))]" />
-          <div>
-            <h3 className="font-bold">Your contribution was recorded</h3>
-            <p className="mt-1 text-sm leading-6 text-[hsl(var(--muted-foreground))]">
-              Record {scanId ?? "pending"} now contains the submitted crop
-              details and image. It is grouped using an approximate area;
-              regional insights show the pattern, not your farm location.
-            </p>
-          </div>
-        </div>
-      </Box>
-    </div>
   );
 }
 
