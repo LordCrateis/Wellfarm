@@ -187,3 +187,18 @@ instead of silently changing cached training settings.
 The smoke command deliberately uses only two images per label at 96px. Its
 accuracy is not a model-quality result; it only verifies loading, gradients,
 checkpointing, validation, and test reporting.
+
+## Field-robustness continuation
+
+Continue from the completed crop-head winner for two full-backbone epochs with
+stronger phone/field transforms and crop-safe MixUp/CutMix:
+
+```bash
+npm run model:smoke-field-aug
+npm run model:train-field-aug
+```
+
+The real run preserves the existing winner as its initial `best.pt` and only
+replaces it when validation macro-F1 improves. Its design, baseline, exact
+settings, and selection rule are documented in
+`docs/model/field-augmentation-v1.md`.

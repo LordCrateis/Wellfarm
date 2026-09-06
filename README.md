@@ -67,6 +67,11 @@ Model v1 is explicitly scoped to rice, wheat, maize, cotton, sugarcane, soybean,
 
 The repository now includes a resumable EfficientNetV2-S training and evaluation pipeline plus a shared-backbone crop-specific-head candidate initialized from the best global checkpoint. See `services/vision/README.md` for training commands, cached checkpoints, and machine-readable result files. Model inference integration and honest out-of-distribution handling follow after a candidate clears field-focused evaluation.
 
+The current experiment continues from the crop-head winner under stronger
+phone and field-image augmentation while retaining that winner as an automatic
+fallback. See `docs/model/field-augmentation-v1.md` for the benchmark and
+selection policy.
+
 ## License
 
 Repository code and documentation are available under the [MIT License](LICENSE). Third-party datasets and models retain their own licenses and must be reviewed separately.

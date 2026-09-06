@@ -16,6 +16,8 @@
     "model:evaluate-plantdoc-screened": "node services/vision/scripts/run_python.mjs services/vision/scripts/evaluate_checkpoint.py --manifest data/processed/wellfarm-v1/plantdoc-screened-test-v1.csv --report-name plantdoc_screened_v1",
     "model:train-crop-heads": "node services/vision/scripts/run_python.mjs services/vision/scripts/train_crop_heads.py",
     "model:smoke-crop-heads": "node services/vision/scripts/run_python.mjs services/vision/scripts/train_crop_heads.py --run-name crop-head-smoke --epochs 1 --head-epochs 1 --image-size 96 --limit-per-class 2 --checkpoint-every-batches 5 --fresh",
-    "model:verify-crop-heads": "node services/vision/scripts/run_python.mjs services/vision/scripts/verify_crop_head_initialization.py"
+    "model:verify-crop-heads": "node services/vision/scripts/run_python.mjs services/vision/scripts/verify_crop_head_initialization.py",
+    "model:train-field-aug": "node services/vision/scripts/run_python.mjs services/vision/scripts/train_crop_heads.py --run-name efficientnetv2-s-crop-heads-field-aug-v1 --init-crop-head-run-dir models/artifacts/wellfarm-v1/efficientnetv2-s-crop-heads-v1 --epochs 2 --head-epochs 0 --augmentation field --batch-mix-probability 0.5 --mixup-alpha 0.2 --cutmix-alpha 1.0 --fine-tune-lr 0.000005 --patience 2",
+    "model:smoke-field-aug": "node services/vision/scripts/run_python.mjs services/vision/scripts/train_crop_heads.py --run-name field-aug-smoke --init-crop-head-run-dir models/artifacts/wellfarm-v1/efficientnetv2-s-crop-heads-v1 --epochs 1 --head-epochs 0 --image-size 96 --limit-per-class 2 --augmentation field --batch-mix-probability 1 --checkpoint-every-batches 5 --fresh"
   }
 }

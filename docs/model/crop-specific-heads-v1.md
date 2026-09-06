@@ -58,5 +58,11 @@ The completed tiny smoke run used two images per class at 96px and verified
 initialization, gradients, periodic checkpointing, validation, and test output.
 Its scores are deliberately not treated as model-quality evidence.
 
-The crop-head candidate must beat the existing crop-filtered global checkpoint
-on the untouched full test set and PlantDoc stress test before integration.
+## Completed result
+
+The selected epoch-1 checkpoint reached 97.23% validation macro-F1. On the
+untouched 5,516-image test set it reached 83.61% accuracy, 80.78% macro-F1,
+83.21% balanced accuracy, and 92.49% top-3 accuracy. PlantDoc accuracy was
+49.78%. This beat the crop-filtered global checkpoint by 0.82 percentage points
+in overall accuracy, 1.58 points in macro-F1, and 2.02 points on PlantDoc, but
+the absolute field-photo result remains the principal weakness.
