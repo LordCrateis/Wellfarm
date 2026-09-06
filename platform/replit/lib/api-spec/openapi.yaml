@@ -14,6 +14,8 @@ tags:
     description: Farmer crop scan records
   - name: weather
     description: Live field weather context
+  - name: advisory
+    description: Plain-language explanation of structured crop-analysis evidence
 paths:
   /healthz:
     get:
@@ -199,6 +201,31 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /advisory/explain:
+    post:
+      operationId: explainScanAnalysis
+      tags: [advisory]
+      summary: Explain structured crop-analysis evidence
+      description: Converts ranked model candidates and farmer context into cautious plain-language guidance. It does not inspect the image or create a diagnosis.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdvisoryRequest"
+      responses:
+        "200":
+          description: Gemini or deterministic fallback explanation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdvisoryResponse"
+        "400":
+          description: Invalid advisory evidence
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
     HealthStatus:
@@ -340,6 +367,111 @@ components:
             - imagePath
             - createdAt
             - updatedAt
+    AdvisoryCandidate:
+      type: object
+      additionalProperties: false
+      properties:
+        condition:
+          type: string
+          minLength: 1
+          maxLength: 100
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+      required:
+        - condition
+        - confidence
+    AdvisoryRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        mode:
+          type: string
+          enum: [preview, model]
+        crop:
+          $ref: "#/components/schemas/Crop"
+        candidates:
+          type: array
+          minItems: 1
+          maxItems: 3
+          items:
+            $ref: "#/components/schemas/AdvisoryCandidate"
+        severity:
+          type: string
+          enum: [low, moderate, high]
+        symptoms:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+            minLength: 1
+            maxLength: 200
+        affectedPart:
+          type: string
+          maxLength: 100
+        affectedAreaPercentage:
+          type: number
+          minimum: 0
+          maximum: 100
+        nearbyPlantsAffected:
+          type: boolean
+        weather:
+          type: object
+          additionalProperties: false
+          properties:
+            temperatureCelsius:
+              type: number
+            relativeHumidityPercentage:
+              type: number
+              minimum: 0
+              maximum: 100
+            precipitationMm:
+              type: number
+              minimum: 0
+        locale:
+          type: string
+          minLength: 2
+          maxLength: 20
+      required:
+        - mode
+        - crop
+        - candidates
+        - severity
+    AdvisoryResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        source:
+          type: string
+          enum: [gemini, fallback]
+        model:
+          type:
+            - string
+            - "null"
+        summary:
+          type: string
+        uncertainty:
+          type: string
+        nextSteps:
+          type: array
+          minItems: 1
+          maxItems: 3
+          items:
+            type: string
+        safetyNote:
+          type: string
+        generatedAt:
+          type: string
+          format: date-time
+      required:
+        - source
+        - model
+        - summary
+        - uncertainty
+        - nextSteps
+        - safetyNote
+        - generatedAt
     ErrorResponse:
       type: object
       properties:
