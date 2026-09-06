@@ -7,6 +7,10 @@ import {
   type Scan,
 } from "@workspace/api-client-react";
 import { weather } from "@/data/mock";
+import {
+  createPreviewAnalysis,
+  type ScanAnalysisResult,
+} from "@/services/scan-analysis";
 
 export interface DisplayWeather {
   location: string;
@@ -148,17 +152,19 @@ export const sampleLocation: BrowserLocation = {
   label: "Cuttack district · sample location",
 };
 
-export const analyzeCropScan = async (crop: string) => {
+export const analyzeCropScan = async (
+  crop: CreateScanInput["crop"],
+): Promise<
+  ScanAnalysisResult & {
+    condition: string;
+    confidence: number;
+  }
+> => {
   await new Promise((resolve) => setTimeout(resolve, 500));
-  return crop === "Rice"
-    ? {
-        condition: "Rice bacterial leaf blight",
-        confidence: 0.84,
-        severity: "moderate" as const,
-      }
-    : {
-        condition: "Early visual signal — expert review advised",
-        confidence: 0.68,
-        severity: "low" as const,
-      };
+  const analysis = createPreviewAnalysis(crop);
+  return {
+    ...analysis,
+    condition: analysis.candidates[0].condition,
+    confidence: analysis.candidates[0].confidence,
+  };
 };
