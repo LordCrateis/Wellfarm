@@ -61,6 +61,10 @@ import {
 import { languageNames, locales, type LocaleKey } from "@/i18n/locales";
 import { useMobileCamera } from "@/hooks/use-mobile-camera";
 import type { ScanAnalysisResult } from "@/services/scan-analysis";
+import {
+  requestAdvisoryExplanation,
+  type AdvisoryExplanation,
+} from "@/services/advisory";
 
 const Button = ({
   children,
@@ -727,6 +731,9 @@ export function ScanJourney({
   const [savedScanId, setSavedScanId] = useState<string | null>(null);
   const [scanWeather, setScanWeather] = useState<DisplayWeather | null>(null);
   const [result, setResult] = useState<ScanAnalysisResult | null>(null);
+  const [explanation, setExplanation] = useState<AdvisoryExplanation | null>(
+    null,
+  );
 
   useEffect(() => {
     if (!photo) {
@@ -776,6 +783,7 @@ export function ScanJourney({
     if (!photo || !location) return;
     setAnalysis(true);
     setSubmissionError(null);
+    setExplanation(null);
 
     try {
       const areaPercentages: Record<string, number> = {
@@ -787,12 +795,13 @@ export function ScanJourney({
         nearbySymptoms === "Not sure"
           ? undefined
           : nearbySymptoms === "Yes, nearby plants too";
+      const symptomList = symptoms
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
       const scan = await createScanRecord({
         crop,
-        symptoms: symptoms
-          .split(",")
-          .map((item) => item.trim())
-          .filter(Boolean),
+        symptoms: symptomList,
         affectedPart,
         growthStage,
         affectedAreaPercentage: areaPercentages[affectedArea],
@@ -807,10 +816,19 @@ export function ScanJourney({
         location.longitude,
       );
       const diagnosis = await analyzeCropScan(crop);
+      const advisory = await requestAdvisoryExplanation(diagnosis, {
+        symptoms: symptomList,
+        affectedPart,
+        affectedAreaPercentage: areaPercentages[affectedArea],
+        nearbyPlantsAffected,
+        weather: weatherContext,
+        locale,
+      });
 
       setSavedScanId(scan.id);
       setScanWeather(weatherContext);
       setResult(diagnosis);
+      setExplanation(advisory);
       setStep(4);
     } catch {
       setSubmissionError(
@@ -824,6 +842,7 @@ export function ScanJourney({
   const retryWithAnotherPhoto = () => {
     setPhoto(null);
     setResult(null);
+    setExplanation(null);
     setSavedScanId(null);
     setScanWeather(null);
     setSubmissionError(null);
@@ -1214,7 +1233,7 @@ export function ScanJourney({
                   "Visual diagnosis · comparing leaf patterns",
                   "Weather retrieval · humidity and rainfall context",
                   `Regional context · ${location?.label ?? "location available"}`,
-                  "Solution cache · checking validated matches",
+                  "Plain-language guidance · preparing safe explanation",
                 ].map((label, i) => (
                   <div key={label}>
                     <div className="flex items-center gap-3 text-sm">
@@ -1246,6 +1265,7 @@ export function ScanJourney({
         {step === 4 && result && (
           <ScanResultCard
             result={result}
+            explanation={explanation ?? undefined}
             scanId={savedScanId}
             imageUrl={photoPreview}
             locationLabel={location?.label ?? "Approximate location unavailable"}
