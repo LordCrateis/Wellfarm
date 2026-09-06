@@ -1,8 +1,10 @@
+import { LocalizedContent } from "@/i18n/TranslationProvider";
 import { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
 import type { Severity } from "@/data/mock";
+import { useTranslation } from "@/i18n/TranslationProvider";
 
 export interface WellfarmMapPoint {
   latitude: number;
@@ -53,6 +55,7 @@ export function WellfarmMap({
   showLegend = false,
   approximateRadiusMeters,
 }: WellfarmMapProps) {
+  const { t, locale } = useTranslation();
   const mapNode = useRef<HTMLDivElement | null>(null);
   const pointKey = JSON.stringify(points);
   const centerKey = center?.join(",") ?? "";
@@ -63,10 +66,11 @@ export function WellfarmMap({
     const map = L.map(mapNode.current, {
       attributionControl: true,
       scrollWheelZoom: false,
-      zoomControl: true,
+      zoomControl: false,
       minZoom: 3,
     });
     map.attributionControl.setPrefix(false);
+    L.control.zoom({ zoomInTitle: t("Zoom in"), zoomOutTitle: t("Zoom out") }).addTo(map);
 
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution:
@@ -97,9 +101,9 @@ export function WellfarmMap({
         weight: 3,
       });
 
-      const title = escapeHtml(point.label);
+      const title = escapeHtml(t(point.label));
       const detail = point.detail
-        ? `<span>${escapeHtml(point.detail)}</span>`
+        ? `<span>${escapeHtml(t(point.detail))}</span>`
         : "";
       marker.bindTooltip(`<strong>${title}</strong>${detail}`, {
         direction: "top",
@@ -114,7 +118,7 @@ export function WellfarmMap({
         const markerNode = marker.getElement();
         markerNode?.setAttribute(
           "aria-label",
-          `${point.label}${point.detail ? `, ${point.detail}` : ""}`,
+          `${t(point.label)}${point.detail ? `, ${t(point.detail)}` : ""}`,
         );
         markerNode?.setAttribute("tabindex", "0");
       });
@@ -147,9 +151,9 @@ export function WellfarmMap({
     };
     // pointKey and centerKey make the map update when serializable map data changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pointKey, centerKey, zoom, maxFitZoom, approximateRadiusMeters]);
+  }, [pointKey, centerKey, zoom, maxFitZoom, approximateRadiusMeters, locale]);
 
-  return (
+  return <LocalizedContent>{(
     <div className="wf-map-shell" role="region" aria-label={ariaLabel}>
       <div
         ref={mapNode}
@@ -176,5 +180,5 @@ export function WellfarmMap({
           .join(". ")}
       </p>
     </div>
-  );
+  )}</LocalizedContent>;
 }
