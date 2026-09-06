@@ -1,0 +1,10 @@
+import { createRequire } from "node:module";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { spawnSync } from "node:child_process";
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const { build } = createRequire(resolve(root, "../api-server/package.json"))("esbuild");
+const outfile = resolve(root, ".cache/translation-tests.mjs");
+await build({entryPoints:[resolve(root,"src/i18n/TranslationProvider.test.tsx")],outfile,bundle:true,platform:"node",format:"esm",packages:"external",jsx:"automatic",alias:{"@":resolve(root,"src")}});
+const result = spawnSync(process.execPath,["--test",outfile],{stdio:"inherit"});
+process.exitCode = result.status ?? 1;
