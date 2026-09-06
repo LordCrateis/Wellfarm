@@ -1,3 +1,4 @@
+import { LocalizedContent } from "@/i18n/TranslationProvider";
 import { Link } from "wouter";
 import {
   AlertTriangle,
@@ -33,13 +34,13 @@ function Panel({
   children: React.ReactNode;
   className?: string;
 }) {
-  return (
+  return <LocalizedContent>{(
     <section
       className={`border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 shadow-sm ${className}`}
     >
       {children}
     </section>
-  );
+  )}</LocalizedContent>;
 }
 
 function confidenceLabel(value: number): string {
@@ -71,7 +72,7 @@ export function ScanResultCard({
     generatedAt: new Date().toISOString(),
   };
 
-  return (
+  return <LocalizedContent>{(
     <div className="space-y-5" data-testid="scan-result">
       {isPreview && (
         <div
@@ -345,5 +346,5 @@ export function ScanResultCard({
         </div>
       </div>
     </div>
-  );
+  )}</LocalizedContent>;
 }
