@@ -1,3 +1,4 @@
+import { LocalizedContent } from "@/i18n/TranslationProvider";
 import { Bell, ChevronDown, Globe2, Menu, X } from "lucide-react";
 import { useState } from "react";
 import type { ReactNode } from "react";
@@ -8,7 +9,7 @@ import { languageNames, type LocaleKey, locales } from "@/i18n/locales";
 type Workspace = "farmer" | "insights";
 
 export function LanguageSelect({ locale, setLocale }: { locale: LocaleKey; setLocale: (value: LocaleKey) => void }) {
-  return (
+  return <LocalizedContent>{(
     <label className="relative inline-flex items-center gap-1 text-xs font-semibold text-[hsl(var(--muted-foreground))]">
       <Globe2 size={15} />
       <select
@@ -18,17 +19,17 @@ export function LanguageSelect({ locale, setLocale }: { locale: LocaleKey; setLo
         onChange={(event) => setLocale(event.target.value as LocaleKey)}
         className="cursor-pointer appearance-none bg-transparent pr-4 text-[hsl(var(--foreground))] outline-none"
       >
-        {Object.entries(languageNames).map(([key, name]) => <option key={key} value={key}>{name}</option>)}
+        {Object.entries(languageNames).map(([key, name]) => <option key={key} value={key} translate="no">{name}</option>)}
       </select>
       <ChevronDown size={12} className="pointer-events-none absolute right-0" />
     </label>
-  );
+  )}</LocalizedContent>;
 }
 
 export function PublicNav({ locale, setLocale }: { locale: LocaleKey; setLocale: (value: LocaleKey) => void }) {
-  const t = locales[locale];
+  const t = locales.en;
   const [open, setOpen] = useState(false);
-  return (
+  return <LocalizedContent>{(
     <header className="sticky top-0 z-40 border-b border-[hsl(var(--border))] bg-[hsl(var(--background)/_.94)] backdrop-blur-sm">
       <div className="mx-auto flex h-[72px] max-w-[1240px] items-center justify-between px-5 lg:px-8">
         <Brand />
@@ -45,7 +46,7 @@ export function PublicNav({ locale, setLocale }: { locale: LocaleKey; setLocale:
         </div>
       </div>
     </header>
-  );
+  )}</LocalizedContent>;
 }
 
 const insightItems = [
@@ -64,7 +65,7 @@ export function AppShell({ children, role, locale, setLocale }: { children: Reac
   const isFarmer = role === "farmer";
   const items = isFarmer ? farmerItems : insightItems;
 
-  return (
+  return <LocalizedContent>{(
     <div className="min-h-[100dvh] bg-[hsl(var(--background))]">
       <aside className={`${mobile ? "translate-x-0" : "-translate-x-full"} fixed inset-y-0 left-0 z-50 w-[272px] bg-[hsl(var(--sidebar))] p-5 text-[hsl(var(--sidebar-foreground))] transition-transform lg:translate-x-0`}>
         <div className="flex items-center justify-between"><Brand inverse /><button className="rounded p-2 lg:hidden" onClick={() => setMobile(false)} data-testid="button-close-sidebar"><X size={18} /></button></div>
@@ -87,5 +88,5 @@ export function AppShell({ children, role, locale, setLocale }: { children: Reac
         <main className="mx-auto max-w-[1400px] p-5 lg:p-8">{children}</main>
       </div>
     </div>
-  );
+  )}</LocalizedContent>;
 }
