@@ -2,7 +2,7 @@
 
 The advisory service turns structured model, crop, symptom, and weather evidence into readable guidance in the selected language.
 
-The running implementation is exposed by the API server at `POST /api/advisory/explain`. It uses `gemini-2.5-flash-lite` by default when `GEMINI_API_KEY` is configured. `GEMINI_MODEL` can override the model name.
+The running implementation is exposed by the API server at `POST /api/advisory/explain`. It uses `gemini-3.5-flash-lite` by default when `GEMINI_API_KEY` is configured. `GEMINI_MODEL` can override the model name.
 
 Gemini explains the ranked output; it does not inspect the uploaded image or replace the vision model. The request contains crop and candidate scores, optional farmer-observed symptoms, approximate affected area, nearby-plant status, weather measurements, and locale. It excludes the image, exact coordinates, farmer identity, and free-form notes.
 
