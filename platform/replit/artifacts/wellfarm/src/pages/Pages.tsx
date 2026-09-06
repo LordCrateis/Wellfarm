@@ -7,6 +7,7 @@ import {
   ArrowUpRight,
   BadgeCheck,
   BarChart3,
+  Camera,
   Check,
   ChevronRight,
   CircleHelp,
@@ -58,6 +59,7 @@ import {
   SeverityBadge,
 } from "@/components/Status";
 import { languageNames, locales, type LocaleKey } from "@/i18n/locales";
+import { useMobileCamera } from "@/hooks/use-mobile-camera";
 
 const Button = ({
   children,
@@ -703,12 +705,14 @@ export function ScanJourney({
   setLocale: (v: LocaleKey) => void;
 }) {
   const t = locales[locale];
+  const hasMobileCamera = useMobileCamera();
   const [step, setStep] = useState(1);
   const [crop, setCrop] = useState<Crop>("Rice");
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
   const [locationState, setLocationState] = useState<
-    "idle" | "loading" | "success" | "denied"
+    "idle" | "loading" | "success" | "denied" | "unavailable"
   >("idle");
   const [location, setLocation] = useState<typeof sampleLocation | null>(null);
   const [affectedPart, setAffectedPart] = useState("Leaf");
@@ -738,20 +742,37 @@ export function ScanJourney({
     return () => URL.revokeObjectURL(previewUrl);
   }, [photo]);
 
+  const choosePhoto = (file?: File) => {
+    if (!file) return;
+    if (!(["image/jpeg", "image/png"] as string[]).includes(file.type)) {
+      setPhoto(null);
+      setPhotoError("Choose a JPG or PNG image.");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setPhoto(null);
+      setPhotoError("This image is larger than 10 MB. Choose a smaller photo.");
+      return;
+    }
+    setPhoto(file);
+    setPhotoError(null);
+    setSubmissionError(null);
+  };
+
   const locate = async () => {
+    setLocation(null);
     setLocationState("loading");
     try {
       const detected = await requestLocation();
       setLocation(detected);
       setLocationState("success");
-    } catch {
-      setLocationState("denied");
+    } catch (error) {
+      setLocationState(
+        error instanceof Error && error.message === "denied"
+          ? "denied"
+          : "unavailable",
+      );
     }
-  };
-
-  const useSampleLocation = () => {
-    setLocation(sampleLocation);
-    setLocationState("success");
   };
 
   const runAnalysis = async () => {
@@ -813,7 +834,7 @@ export function ScanJourney({
           className="text-sm font-bold text-[hsl(var(--primary))]"
           data-testid="link-exit-scan"
         >
-          Save and exit
+          Exit scan
         </Link>
       </PageHeader>
       <div className="mx-auto max-w-3xl">
@@ -854,20 +875,62 @@ export function ScanJourney({
                 Keep the affected part in focus. JPG or PNG, up to 10 MB. Avoid
                 backlit or heavily blurred images.
               </p>
+              {hasMobileCamera && (
+                <label
+                  className="mt-6 inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg bg-[hsl(var(--primary))] px-4 text-sm font-bold text-[hsl(var(--card))]"
+                  data-testid="label-take-photo"
+                >
+                  <Camera size={16} />
+                  {photo ? "Retake photo" : "Take a photo"}
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg"
+                    capture="environment"
+                    className="sr-only"
+                    data-testid="input-camera-photo"
+                    onClick={(event) => {
+                      event.currentTarget.value = "";
+                    }}
+                    onChange={(event) => choosePhoto(event.target.files?.[0])}
+                  />
+                </label>
+              )}
               <label
-                className="mt-6 inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg bg-[hsl(var(--primary))] px-4 text-sm font-bold text-[hsl(var(--card))]"
+                className={`${
+                  hasMobileCamera
+                    ? "mt-3 border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[hsl(var(--foreground))]"
+                    : "mt-6 bg-[hsl(var(--primary))] text-[hsl(var(--card))]"
+                } inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-4 text-sm font-bold`}
                 data-testid="label-upload-photo"
               >
                 <Upload size={16} />
-                Choose photo
+                {hasMobileCamera
+                  ? photo
+                    ? "Choose another from gallery"
+                    : "Choose from gallery"
+                  : photo
+                    ? "Replace photo"
+                    : "Choose photo"}
                 <input
                   type="file"
                   accept="image/png,image/jpeg"
                   className="sr-only"
                   data-testid="input-crop-photo"
-                  onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
+                  onClick={(event) => {
+                    event.currentTarget.value = "";
+                  }}
+                  onChange={(event) => choosePhoto(event.target.files?.[0])}
                 />
               </label>
+              {photoError && (
+                <div
+                  className="mt-4 text-sm font-semibold text-[hsl(4_48%_36%)]"
+                  role="alert"
+                  data-testid="error-crop-photo"
+                >
+                  {photoError}
+                </div>
+              )}
               {photo && (
                 <div className="mt-4 text-xs font-semibold text-[hsl(var(--primary))]">
                   {photo.name} · image quality check ready
@@ -963,21 +1026,25 @@ export function ScanJourney({
                   )}
                 </div>
               )}
-              {locationState === "denied" && (
+              {(locationState === "denied" ||
+                locationState === "unavailable") && (
                 <div className="mt-7 border border-[hsl(39_77%_55%)] bg-[hsl(39_77%_66%/_.18)] p-4 text-left">
                   <div className="font-bold">
-                    Location permission was not available
+                    {locationState === "denied"
+                      ? "Location permission is blocked"
+                      : "Your location could not be detected"}
                   </div>
                   <p className="mt-1 text-sm leading-6">
-                    You can continue without GPS using the sample Cuttack area.
-                    No precise coordinates will be saved.
+                    {locationState === "denied"
+                      ? "Allow location in this site's browser settings, then try again."
+                      : "Make sure location services are enabled and try again."}
                   </p>
                   <Button
-                    onClick={useSampleLocation}
+                    onClick={locate}
                     variant="outline"
-                    testId="button-use-sample-location"
+                    testId="button-retry-location"
                   >
-                    Use sample area · Cuttack
+                    <MapPin size={16} /> Retry location
                   </Button>
                 </div>
               )}
@@ -1000,7 +1067,7 @@ export function ScanJourney({
             </div>
           </Box>
         )}
-        {step === 3 && (
+        {step === 3 && !analysis && (
           <Box>
             <h2 className="text-xl font-bold">Tell us about the crop</h2>
             <p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">
@@ -1137,10 +1204,10 @@ export function ScanJourney({
               <div className="mt-8 space-y-5">
                 {[
                   "Image quality check · clear enough to review",
-                  "Crop compatibility · rice visual library matched",
+                  `Crop compatibility · ${crop.toLowerCase()} head selected`,
                   "Visual diagnosis · comparing leaf patterns",
                   "Weather retrieval · humidity and rainfall context",
-                  "Regional lookup · Cuttack cluster found",
+                  `Regional context · ${location?.label ?? "location available"}`,
                   "Solution cache · checking validated matches",
                 ].map((label, i) => (
                   <div key={label}>
