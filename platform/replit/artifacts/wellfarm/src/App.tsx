@@ -16,7 +16,8 @@ import {
   RegionalDistrict,
   Transparency,
 } from "@/pages/Pages";
-import type { LocaleKey } from "@/i18n/locales";
+import { languageNames, type LocaleKey } from "@/i18n/locales";
+import { TranslationProvider } from "@/i18n/TranslationProvider";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient();
@@ -28,31 +29,36 @@ function RoutedErrorBoundary({ children }: { children: ReactNode }) {
 
 function Router() {
   const [locale, setLocale] = useState<LocaleKey>(
-    () => (localStorage.getItem("wellfarm-locale") as LocaleKey) || "en",
+    () => {
+      try {
+        const saved = localStorage.getItem("wellfarm-locale");
+        return saved && Object.hasOwn(languageNames, saved) ? saved as LocaleKey : "en";
+      } catch { return "en"; }
+    },
   );
   const changeLocale = (next: LocaleKey) => {
     setLocale(next);
-    localStorage.setItem("wellfarm-locale", next);
+    try { localStorage.setItem("wellfarm-locale", next); } catch { /* Still switch when browser storage is disabled. */ }
   };
   const props = { locale, setLocale: changeLocale };
 
   return (
-    <RoutedErrorBoundary>
+    <TranslationProvider locale={locale}><RoutedErrorBoundary>
       <Switch>
-        <Route path="/" component={() => <PublicHome {...props} />} />
-        <Route path="/workspaces" component={() => <Roles {...props} />} />
-        <Route path="/roles" component={() => <Roles {...props} />} />
-        <Route path="/farmer" component={() => <FarmerHome {...props} />} />
-        <Route path="/farmer/scan" component={() => <ScanJourney {...props} />} />
-        <Route path="/farmer/history" component={() => <FarmerHistory {...props} />} />
-        <Route path="/farmer/history/:id" component={() => <FarmerHistory {...props} />} />
-        <Route path="/insights" component={() => <RegionalOverview {...props} />} />
-        <Route path="/insights/intelligence" component={() => <RegionalIntelligence {...props} />} />
-        <Route path="/insights/district/:id" component={() => <RegionalDistrict {...props} />} />
-        <Route path="/transparency" component={() => <Transparency {...props} />} />
+        <Route path="/"><PublicHome {...props} /></Route>
+        <Route path="/workspaces"><Roles {...props} /></Route>
+        <Route path="/roles"><Roles {...props} /></Route>
+        <Route path="/farmer"><FarmerHome {...props} /></Route>
+        <Route path="/farmer/scan"><ScanJourney {...props} /></Route>
+        <Route path="/farmer/history"><FarmerHistory {...props} /></Route>
+        <Route path="/farmer/history/:id"><FarmerHistory {...props} /></Route>
+        <Route path="/insights"><RegionalOverview {...props} /></Route>
+        <Route path="/insights/intelligence"><RegionalIntelligence {...props} /></Route>
+        <Route path="/insights/district/:id"><RegionalDistrict {...props} /></Route>
+        <Route path="/transparency"><Transparency {...props} /></Route>
         <Route component={NotFound} />
       </Switch>
-    </RoutedErrorBoundary>
+    </RoutedErrorBoundary></TranslationProvider>
   );
 }
 
