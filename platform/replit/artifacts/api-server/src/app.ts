@@ -29,8 +29,15 @@ app.use(
     },
   }),
 );
-app.use(cors());
-app.use(express.json());
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  const allowed = [process.env.APP_ORIGIN ?? "http://localhost:5173", `http://${req.get("host")}`, `https://${req.get("host")}`];
+  if (!["GET", "HEAD", "OPTIONS"].includes(req.method) && (req.headers["sec-fetch-site"] === "cross-site" || (origin && !allowed.includes(origin)))) {
+    res.status(403).json({error: {message: "Request origin is not allowed."}}); return;
+  }
+  next();
+});
+app.use(express.json({limit: "512kb"}));
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
