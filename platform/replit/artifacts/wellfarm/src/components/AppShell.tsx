@@ -1,9 +1,10 @@
 import { LocalizedContent } from "@/i18n/TranslationProvider";
-import { Bell, ChevronDown, Globe2, Menu, X } from "lucide-react";
+import { ChevronDown, Globe2, Menu, X } from "lucide-react";
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { Brand } from "./Brand";
+import { AccountControls } from "./AccountControls";
 import { languageNames, type LocaleKey, locales } from "@/i18n/locales";
 
 type Workspace = "farmer" | "insights";
@@ -83,7 +84,7 @@ export function AppShell({ children, role, locale, setLocale }: { children: Reac
         <header className="sticky top-0 z-30 flex h-[72px] items-center justify-between border-b border-[hsl(var(--border))] bg-[hsl(var(--background)/_.94)] px-5 backdrop-blur-sm lg:px-8">
           <button className="rounded-lg border border-[hsl(var(--border))] p-2 lg:hidden" onClick={() => setMobile(true)} data-testid="button-open-sidebar"><Menu size={19} /></button>
           <div className="hidden items-center gap-2 text-sm text-[hsl(var(--muted-foreground))] md:flex"><span className="h-2 w-2 rounded-full bg-[hsl(var(--primary))]" />Wellfarm <span className="text-[hsl(var(--border))]">/</span> {isFarmer ? "Fieldbook" : "Insights"}</div>
-          <div className="ml-auto flex items-center gap-4"><LanguageSelect locale={locale} setLocale={setLocale} /><Bell size={18} className="text-[hsl(var(--muted-foreground))]" /><div className="grid h-8 w-8 place-items-center rounded-full bg-[hsl(var(--secondary))] text-xs font-bold text-[hsl(var(--primary))]">{isFarmer ? "SP" : "WF"}</div></div>
+          <div className="ml-auto flex items-center gap-2 sm:gap-4"><LanguageSelect locale={locale} setLocale={setLocale} /><AccountControls /></div>
         </header>
         <main className="mx-auto max-w-[1400px] p-5 lg:p-8">{children}</main>
       </div>
