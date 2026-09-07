@@ -219,7 +219,10 @@ export function PublicHome({
   const [homeScans, setHomeScans] = useState<Scan[]>([]);
   const [homeReports, setHomeReports] = useState<Record<string, ScanAnalysisResult>>({});
   const [homeState, setHomeState] = useState("loading");
+  const { account, loading: accountLoading } = useAccount();
   useEffect(() => {
+    if (accountLoading) return;
+    if (!account) { setHomeState("signed-out"); setHomeScans([]); setHomeReports({}); return; }
     let active = true;
     const refresh = async () => {
       try {
@@ -239,7 +242,7 @@ export function PublicHome({
     window.addEventListener("focus", refresh);
     window.addEventListener("wellfarm:scans-changed", refresh);
     return () => { active = false; window.removeEventListener("focus", refresh); window.removeEventListener("wellfarm:scans-changed", refresh); };
-  }, []);
+  }, [account, accountLoading]);
   return <LocalizedContent>{(
     <div className="wf-noise min-h-[100dvh]">
       <PublicNav locale={locale} setLocale={setLocale} />
@@ -323,6 +326,7 @@ export function PublicHome({
             </div>
             <div className="border border-t-0 border-[hsl(var(--border))] p-3" data-testid="home-saved-reports">
               {homeState === "loading" && <p>Loading saved scans…</p>}
+              {homeState === "signed-out" && <Link href="/login" className="font-semibold text-primary">Log in to see your scans and reports</Link>}
               {homeState === "error" && <p>Saved scans could not be loaded. Check that Wellfarm is running.</p>}
               {homeState === "ready" && homeScans.length === 0 && <p>No saved scans yet.</p>}
               {homeScans.slice(0, 3).map(scan => (
