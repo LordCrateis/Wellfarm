@@ -3,7 +3,7 @@ import { extname } from "node:path";
 import { Router, type IRouter, type RequestHandler } from "express";
 import { desc, eq } from "drizzle-orm";
 import multer from "multer";
-import { analyzeScan } from "../services/vision";
+import { analyzeScan, isVisionBusy } from "../services/vision";
 import {
   CreateScanBody,
   CreateScanResponse,
@@ -304,6 +304,19 @@ router.get("/scans/:scanId/analysis", requireExistingScan, async (_req, res, nex
     const result = await analyzeScan(res.locals.scan as Scan, true);
     if (!result) { res.status(404).json({ error: { code: "NO_ANALYSIS", message: "This photo has not been analyzed yet." } }); return; }
     res.json(result);
+  } catch (error) { next(error); }
+});
+
+router.delete("/scans/:scanId", requireExistingScan, (_req, res, next) => {
+  if (isVisionBusy()) {
+    res.status(409).json({ error: { message: "Wait for the current analysis to finish before deleting scans." } });
+    return;
+  }
+  try {
+    const scan = res.locals.scan as Scan;
+    if (scan.imagePath) removeStoredImage(scan.imagePath);
+    db.delete(scans).where(eq(scans.id, scan.id)).run();
+    res.sendStatus(204);
   } catch (error) { next(error); }
 });
 
