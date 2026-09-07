@@ -15,6 +15,23 @@ export function ProfilePage({ locale, setLocale }: { locale: LocaleKey; setLocal
   const [draftLocale, setDraftLocale] = useState(locale);
   useEffect(() => setDraftLocale(locale), [locale]);
   const [feedback, setFeedback] = useState<"saved" | "error" | null>(null);
+  const [photoError, setPhotoError] = useState("");
+  const uploadAvatar = async (file?: File) => {
+    if (!file) return;
+    setPhotoError("");
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024) { setPhotoError("Choose a JPG, PNG or WebP photo under 5 MB."); return; }
+    const url = URL.createObjectURL(file);
+    try {
+      const image = new Image(); image.src = url; await image.decode();
+      const canvas = document.createElement("canvas"); canvas.width = 256; canvas.height = 256;
+      const context = canvas.getContext("2d"); if (!context) throw new Error();
+      const side = Math.min(image.naturalWidth, image.naturalHeight);
+      context.drawImage(image, (image.naturalWidth - side) / 2, (image.naturalHeight - side) / 2, side, side, 0, 0, 256, 256);
+      setDraft(current => ({ ...current, avatar: canvas.toDataURL("image/jpeg", 0.85) }));
+      setFeedback(null);
+    } catch { setPhotoError("This photo could not be opened. Choose another image."); }
+    finally { URL.revokeObjectURL(url); }
+  };
   const dirty = JSON.stringify(draft) !== JSON.stringify(profile) || draftLocale !== locale;
   return <LocalizedContent><AppShell role={profile.workspace} locale={locale} setLocale={setLocale}>
     <Link href={profile.workspace === "farmer" ? "/farmer" : "/insights"} className="mb-5 inline-flex min-h-11 items-center text-sm font-semibold text-primary" data-testid="link-profile-back">← Back to workspace</Link>
@@ -22,7 +39,11 @@ export function ProfilePage({ locale, setLocale }: { locale: LocaleKey; setLocal
     <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
       <aside className="space-y-5">
         <section className="rounded-xl border bg-card p-6">
-          <div className="grid h-20 w-20 place-items-center rounded-full bg-secondary text-2xl font-bold text-primary" translate="no">{profileInitials(profile.name)}</div>
+          <div className="grid h-20 w-20 overflow-hidden place-items-center rounded-full bg-secondary text-2xl font-bold text-primary" translate="no">{draft.avatar ? <img src={draft.avatar} alt="Profile photo preview" className="h-full w-full object-cover" /> : profileInitials(profile.name)}</div>
+          <label className="mt-4 block text-sm font-semibold">Profile photo<input type="file" accept="image/jpeg,image/png,image/webp" onChange={event => { void uploadAvatar(event.target.files?.[0]); event.target.value = ""; }} className="mt-2 block w-full text-xs" /></label>
+          {draft.avatar && <button type="button" onClick={() => setDraft(current => ({ ...current, avatar: undefined }))} className="mt-2 text-sm text-primary">Remove photo</button>}
+          <p className="mt-2 text-xs text-muted-foreground">Choose a photo, then save your profile.</p>
+          {photoError && <p role="alert" className="mt-2 text-sm text-destructive">{photoError}</p>}
           <h2 className="mt-5 break-words text-xl font-bold">{profile.name ? <span translate="no">{profile.name}</span> : "Your profile"}</h2>
           {profile.farm && <p className="mt-1 break-words text-sm text-muted-foreground" translate="no">{profile.farm}</p>}
           <span className="mt-4 inline-block rounded-full border px-3 py-1 text-xs text-muted-foreground">Saved in this browser</span>
