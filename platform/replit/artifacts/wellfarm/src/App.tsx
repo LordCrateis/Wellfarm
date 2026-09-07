@@ -19,6 +19,8 @@ import {
 import { languageNames, type LocaleKey } from "@/i18n/locales";
 import { TranslationProvider } from "@/i18n/TranslationProvider";
 import NotFound from "@/pages/not-found";
+import { AccountProvider } from "@/services/profile";
+import { ProfilePage } from "@/pages/Profile";
 
 const queryClient = new QueryClient();
 
@@ -43,7 +45,7 @@ function Router() {
   const props = { locale, setLocale: changeLocale };
 
   return (
-    <TranslationProvider locale={locale}><RoutedErrorBoundary>
+    <AccountProvider><TranslationProvider locale={locale}><RoutedErrorBoundary>
       <Switch>
         <Route path="/"><PublicHome {...props} /></Route>
         <Route path="/workspaces"><Roles {...props} /></Route>
@@ -56,9 +58,10 @@ function Router() {
         <Route path="/insights/intelligence"><RegionalIntelligence {...props} /></Route>
         <Route path="/insights/district/:id"><RegionalDistrict {...props} /></Route>
         <Route path="/transparency"><Transparency {...props} /></Route>
+        <Route path="/profile"><ProfilePage {...props} /></Route>
         <Route component={NotFound} />
       </Switch>
-    </RoutedErrorBoundary></TranslationProvider>
+    </RoutedErrorBoundary></TranslationProvider></AccountProvider>
   );
 }
 
