@@ -21,6 +21,7 @@ import { TranslationProvider } from "@/i18n/TranslationProvider";
 import NotFound from "@/pages/not-found";
 import { AccountProvider } from "@/services/profile";
 import { ProfilePage } from "@/pages/Profile";
+import { Login, AccountGate } from "@/pages/Login";
 
 const queryClient = new QueryClient();
 
@@ -46,7 +47,8 @@ function Router() {
 
   return (
     <AccountProvider><TranslationProvider locale={locale}><RoutedErrorBoundary>
-      <Switch>
+      <AccountGate><Switch>
+        <Route path="/login"><Login /></Route>
         <Route path="/"><PublicHome {...props} /></Route>
         <Route path="/workspaces"><Roles {...props} /></Route>
         <Route path="/roles"><Roles {...props} /></Route>
@@ -60,7 +62,7 @@ function Router() {
         <Route path="/transparency"><Transparency {...props} /></Route>
         <Route path="/profile"><ProfilePage {...props} /></Route>
         <Route component={NotFound} />
-      </Switch>
+      </Switch></AccountGate>
     </RoutedErrorBoundary></TranslationProvider></AccountProvider>
   );
 }
