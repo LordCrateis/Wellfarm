@@ -155,6 +155,12 @@ export const analyzeCropScan = async (
   scanId: string,
 ): Promise<ScanAnalysisResult> => {
   const response = await fetch(`/api/scans/${encodeURIComponent(scanId)}/analysis`, { method: "POST" });
-  if (!response.ok) throw new Error("Your scan was saved, but analysis failed. Check the model service and retry.");
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    if (body?.error?.code === "ROUTE_NOT_FOUND") {
+      throw new Error("Your scan was saved. Restart npm run dev to load the updated analysis API, then retry.");
+    }
+    throw new Error(body?.error?.message ?? "Your scan was saved, but analysis failed. Check the model service and retry.");
+  }
   return response.json();
 };
