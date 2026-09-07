@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { extname } from "node:path";
 import { Router, type IRouter, type RequestHandler } from "express";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import multer from "multer";
 import { analyzeScan, isVisionBusy } from "../services/vision";
 import {
@@ -10,7 +10,7 @@ import {
   GetScanParams,
   GetScanResponse,
 } from "@workspace/api-zod";
-import { db, scans, type Scan } from "@workspace/db";
+import { db, sqlite, scans, type Scan } from "@workspace/db";
 import {
   imageUpload,
   isSupportedImage,
@@ -70,7 +70,8 @@ function validationError(
   };
 }
 
-function findScan(scanId: string): Scan | undefined {
+function findScan(scanId: string, accountId: string): Scan | undefined {
+  if (!sqlite.prepare("SELECT 1 FROM scan_owners WHERE scan_id = ? AND account_id = ?").get(scanId, accountId)) return undefined;
   return db.select().from(scans).where(eq(scans.id, scanId)).get();
 }
 
@@ -82,7 +83,7 @@ const requireExistingScan: RequestHandler = (req, res, next) => {
     return;
   }
 
-  const scan = findScan(parsed.data.scanId);
+  const scan = findScan(parsed.data.scanId, res.locals.account.id);
   if (!scan) {
     res.status(404).json({
       error: {
@@ -153,6 +154,7 @@ router.post("/scans", (req, res, next) => {
       .returning()
       .get();
 
+    sqlite.prepare("INSERT INTO scan_owners VALUES (?, ?)").run(scan.id, res.locals.account.id);
     res.status(201).json(CreateScanResponse.parse(toResponse(scan)));
   } catch (error) {
     next(error);
@@ -164,6 +166,7 @@ router.get("/scans", (_req, res, next) => {
     const storedScans = db
       .select()
       .from(scans)
+      .where(sql`${scans.id} IN (SELECT scan_id FROM scan_owners WHERE account_id = ${res.locals.account.id})`)
       .orderBy(desc(scans.createdAt))
       .limit(100)
       .all();
@@ -185,7 +188,7 @@ router.get("/scans/:scanId", (req, res, next) => {
   }
 
   try {
-    const scan = findScan(parsed.data.scanId);
+    const scan = findScan(parsed.data.scanId, res.locals.account.id);
 
     if (!scan) {
       res.status(404).json({
@@ -287,7 +290,7 @@ router.post("/scans/:scanId/analysis", requireExistingScan, async (_req, res) =>
     const scan = res.locals.scan as Scan;
     const result = await analyzeScan(scan);
     // Do not mark a replacement photo complete while an older photo is running.
-    const current = findScan(scan.id);
+    const current = findScan(scan.id, res.locals.account.id);
     if (current?.imagePath === scan.imagePath) {
       db.update(scans).set({ status: "completed", updatedAt: new Date() }).where(eq(scans.id, scan.id)).run();
     }
