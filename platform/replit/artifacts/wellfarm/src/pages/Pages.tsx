@@ -1,3 +1,6 @@
+import { RealInsights } from "@/pages/RealInsights";
+import { FormSelect } from "@/components/FormSelect";
+import { confirmAction } from "@/components/confirm-action";
 import { LocalizedContent } from "@/i18n/TranslationProvider";
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
@@ -28,20 +31,14 @@ import {
   X,
 } from "lucide-react";
 import {
-  allIndiaSummary,
-  cacheEntries,
   crops,
-  districtSummaries,
-  modelEvaluation,
-  scans,
-  trend,
-  weather,
   type Severity,
 } from "@/data/mock";
 import {
   analyzeCropScan,
   createScanRecord,
-  sampleLocation,
+  unavailableWeather,
+  type BrowserLocation,
   getApproximateLocationLabel,
   getScanRecord,
   listScanRecords,
@@ -87,12 +84,7 @@ const Button = ({
   disabled?: boolean;
 }) => {
   const cls = `inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 text-sm font-bold transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50 ${variant === "primary" ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] hover:opacity-90" : variant === "danger" ? "border border-[hsl(4_48%_55%)] bg-[hsl(4_48%_44%)] text-[hsl(var(--card))]" : variant === "outline" ? "border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]" : "text-[hsl(var(--primary))] hover:bg-[hsl(var(--muted))]"}`;
-  const action =
-    onClick ??
-    (() =>
-      window.alert(
-        "This control is not connected yet. Its local adapter is ready for implementation.",
-      ));
+  const action = onClick;
   return <LocalizedContent>{href ? (
     <Link href={href} className={cls} data-testid={testId}>
       {children}
@@ -282,7 +274,7 @@ export function PublicHome({
           </div>
           <div className="mt-8 flex flex-wrap gap-2">
             <Provenance kind="model" />
-            <Provenance kind="sample" />
+            <Provenance kind="local" />
             <Provenance kind="local" />
           </div>
         </div>
@@ -384,7 +376,7 @@ export function PublicHome({
           </SectionLabel>
           <p className="max-w-md leading-7 text-[hsl(var(--muted-foreground))]">
             The fieldbook focuses on individual crop observations. Regional
-            insights use privacy-reduced sample or local aggregates.
+            insights use aggregates calculated from saved scans.
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -475,7 +467,7 @@ export function Roles({
     },
     {
       title: t.nav.insights,
-      desc: "Explore sample and local patterns without exposing farm coordinates.",
+      desc: "Explore patterns calculated from saved scan records.",
       href: "/insights",
       code: "02",
       icon: BarChart3,
@@ -545,21 +537,18 @@ export function FarmerHome({
 }) {
   const t = locales.en;
   const { profile } = useAccount();
-  const [fieldWeather, setFieldWeather] = useState<DisplayWeather>({
-    ...weather,
-    freshness: "sample",
-  });
+  const [fieldWeather, setFieldWeather] = useState<DisplayWeather>(unavailableWeather);
   const [savedScans, setSavedScans] = useState<Scan[]>([]);
   const [scansLoading, setScansLoading] = useState(true);
   const [scansError, setScansError] = useState(false);
 
   useEffect(() => {
     let active = true;
-    weatherService
-      .getCurrentWeather(sampleLocation.latitude, sampleLocation.longitude)
+    requestLocation()
+      .then(location => weatherService.getCurrentWeather(location.latitude, location.longitude))
       .then((nextWeather) => {
         if (active) setFieldWeather(nextWeather);
-      });
+      }).catch(() => { if (active) setFieldWeather(unavailableWeather); });
     return () => {
       active = false;
     };
@@ -596,7 +585,7 @@ export function FarmerHome({
             <div>
               <div className="flex items-center gap-2 text-sm font-bold">
                 <MapPin size={16} className="text-[hsl(var(--primary))]" />
-                {t.farmer.area}
+                {fieldWeather.location}
               </div>
               <div className="mt-6 text-3xl font-extrabold tracking-[-.04em]">
                 Your field notebook is ready.
@@ -605,7 +594,7 @@ export function FarmerHome({
                 {t.farmer.contribution}
               </p>
             </div>
-            <Provenance kind="sample" />
+            <Provenance kind="local" />
           </div>
           <div className="mt-8 flex flex-wrap gap-3">
             <Button href="/farmer/scan" testId="button-start-first-scan">
@@ -628,8 +617,8 @@ export function FarmerHome({
             </SectionLabel>
             <Provenance
               kind={
-                fieldWeather.freshness === "sample"
-                  ? "sample"
+                fieldWeather.freshness === "unavailable"
+                  ? "local"
                   : fieldWeather.freshness === "cached"
                     ? "cache"
                     : "live"
@@ -719,8 +708,8 @@ export function FarmerHome({
           </div>
         </div>
         <Box className="h-fit">
-          <SectionLabel eyebrow="Community alert">
-            A pattern worth watching
+          <SectionLabel eyebrow="Your saved records">
+            Explore your scan activity
           </SectionLabel>
           <div className="flex gap-3">
             <ShieldAlert
@@ -729,15 +718,14 @@ export function FarmerHome({
             />
             <div>
               <p className="text-sm leading-6">
-                Rice leaf symptoms are clustering across 14 farms near Cuttack.
-                This is a regional signal, not a diagnosis of your crop.
+                {savedScans.length} scans saved on this installation. Open insights to compare your recorded crops and model results.
               </p>
               <Link
                 href="/insights"
                 className="mt-4 inline-flex items-center gap-1 text-sm font-bold text-[hsl(var(--primary))]"
                 data-testid="link-community-alert"
               >
-                See the district view <ArrowRight size={14} />
+                See saved scan insights <ArrowRight size={14} />
               </Link>
             </div>
           </div>
@@ -765,7 +753,7 @@ export function ScanJourney({
   const [locationState, setLocationState] = useState<
     "idle" | "loading" | "success" | "denied" | "unavailable"
   >("idle");
-  const [location, setLocation] = useState<typeof sampleLocation | null>(null);
+  const [location, setLocation] = useState<BrowserLocation | null>(null);
   const [affectedPart, setAffectedPart] = useState("Leaf");
   const [growthStage, setGrowthStage] = useState("Vegetative");
   const [affectedArea, setAffectedArea] = useState("One plant");
@@ -1171,7 +1159,7 @@ export function ScanJourney({
             <div className="mt-7 grid gap-5 sm:grid-cols-2">
               <label className="text-sm font-semibold">
                 Crop
-                <select
+                <FormSelect
                   value={crop}
                   onChange={(e) => setCrop(e.target.value as Crop)}
                   className="mt-2 h-11 w-full border border-[hsl(var(--input))] bg-[hsl(var(--card))] px-3"
@@ -1180,11 +1168,11 @@ export function ScanJourney({
                   {crops.map((c) => (
                     <option key={c}>{c}</option>
                   ))}
-                </select>
+                </FormSelect>
               </label>
               <label className="text-sm font-semibold">
                 Affected plant part
-                <select
+                <FormSelect
                   value={affectedPart}
                   onChange={(e) => setAffectedPart(e.target.value)}
                   className="mt-2 h-11 w-full border border-[hsl(var(--input))] bg-[hsl(var(--card))] px-3"
@@ -1194,11 +1182,11 @@ export function ScanJourney({
                   <option>Stem</option>
                   <option>Fruit</option>
                   <option>Whole plant</option>
-                </select>
+                </FormSelect>
               </label>
               <label className="text-sm font-semibold">
                 Growth stage
-                <select
+                <FormSelect
                   value={growthStage}
                   onChange={(e) => setGrowthStage(e.target.value)}
                   className="mt-2 h-11 w-full border border-[hsl(var(--input))] bg-[hsl(var(--card))] px-3"
@@ -1207,11 +1195,11 @@ export function ScanJourney({
                   <option>Vegetative</option>
                   <option>Flowering</option>
                   <option>Fruit / grain fill</option>
-                </select>
+                </FormSelect>
               </label>
               <label className="text-sm font-semibold">
                 Approx. affected area
-                <select
+                <FormSelect
                   value={affectedArea}
                   onChange={(e) => setAffectedArea(e.target.value)}
                   className="mt-2 h-11 w-full border border-[hsl(var(--input))] bg-[hsl(var(--card))] px-3"
@@ -1220,12 +1208,12 @@ export function ScanJourney({
                   <option>One plant</option>
                   <option>A few plants</option>
                   <option>More than one row</option>
-                </select>
+                </FormSelect>
               </label>
             </div>
             <label className="mt-5 block text-sm font-semibold">
               Are nearby plants showing similar symptoms?
-              <select
+              <FormSelect
                 value={nearbySymptoms}
                 onChange={(e) => setNearbySymptoms(e.target.value)}
                 className="mt-2 h-11 w-full border border-[hsl(var(--input))] bg-[hsl(var(--card))] px-3"
@@ -1234,7 +1222,7 @@ export function ScanJourney({
                 <option>Yes, nearby plants too</option>
                 <option>No, only this plant</option>
                 <option>Not sure</option>
-              </select>
+              </FormSelect>
             </label>
             <label className="mt-5 block text-sm font-semibold">
               Visible symptoms
@@ -1363,7 +1351,7 @@ export function FarmerHistory({
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const deleteScans = async (scanIds: string[]) => {
-    if (!window.confirm(`Permanently delete ${scanIds.length} scan(s), including photos and model reports? This cannot be undone.`)) return;
+    if (!await confirmAction(`Permanently delete ${scanIds.length} scan(s), including photos and model reports? This cannot be undone.`)) return;
     setDeleting(true); setDeleteError("");
     try {
       for (const scanId of scanIds) {
@@ -1720,497 +1708,10 @@ function InsightTabs({ active }: { active: string }) {
     </div>
   )}</LocalizedContent>;
 }
-function IndiaSignalMap() {
-  return <LocalizedContent>{(
-    <WellfarmMap
-      ariaLabel="Map of sample district crop-health signals across India"
-      className="h-[390px] sm:h-[460px]"
-      maxFitZoom={5}
-      showLegend
-      points={districtSummaries.map((district) => ({
-        latitude: district.latitude,
-        longitude: district.longitude,
-        label: `${district.district}, ${district.state}`,
-        detail: `${district.reports} reports · ${district.farms} farms · ${district.change}`,
-        severity: district.severity,
-      }))}
-    />
-  )}</LocalizedContent>;
-}
-export function RegionalOverview({
-  locale,
-  setLocale,
-}: {
-  locale: LocaleKey;
-  setLocale: (v: LocaleKey) => void;
-}) {
-  return <LocalizedContent>{(
-    <AppShell role="insights" locale={locale} setLocale={setLocale}>
-      <PageHeader
-        eyebrow="Regional insights / national overview"
-        title="Regional crop-health intelligence"
-      >
-        <div className="flex flex-wrap gap-2">
-          <Provenance kind="sample" />
-          <span className="text-xs text-[hsl(var(--muted-foreground))]">
-            {locales.en.insights.updated}
-          </span>
-        </div>
-      </PageHeader>
-      <InsightTabs active="overview" />
-      <div className="mb-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-5">
-        <Metric
-          label="Reports"
-          value={String(allIndiaSummary.reports)}
-          note="last 30 days"
-        />
-        <Metric
-          label="Reporting farms"
-          value={String(allIndiaSummary.farms)}
-          note="deduplicated"
-        />
-        <Metric
-          label="High risk"
-          value={String(allIndiaSummary.high)}
-          note="needs review"
-          tone="red"
-        />
-        <Metric
-          label="Moderate"
-          value={String(allIndiaSummary.moderate)}
-          note="watch clusters"
-          tone="amber"
-        />
-        <Metric
-          label="Recent sample records"
-          value={String(allIndiaSummary.pending)}
-          note="across India"
-        />
-      </div>
-      <div className="grid gap-5 xl:grid-cols-[1.35fr_.65fr]">
-        <Box className="p-3">
-          <div className="mb-3 flex items-center justify-between px-2">
-            <div>
-              <div className="font-bold">District signal map</div>
-              <div className="text-xs text-[hsl(var(--muted-foreground))]">
-                Sample locations · select a marker for details
-              </div>
-            </div>
-            <button
-              className="flex items-center gap-2 border border-[hsl(var(--border))] px-3 py-2 text-xs"
-              data-testid="button-map-filters"
-            >
-              <SlidersHorizontal size={14} />
-              Filters
-            </button>
-          </div>
-          <IndiaSignalMap />
-        </Box>
-        <Box>
-          <SectionLabel eyebrow="Search the signal">
-            Explore records
-          </SectionLabel>
-          <label className="flex h-11 items-center gap-2 border border-[hsl(var(--input))] px-3">
-            <Search size={16} className="text-[hsl(var(--muted-foreground))]" />
-            <input
-              className="w-full bg-transparent text-sm outline-none"
-              placeholder="State, district or crop"
-              data-testid="input-insight-search"
-            />
-          </label>
-          <div className="mt-4 grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
-            {[
-              ["Crop", "All crops"],
-              ["Condition", "All conditions"],
-              ["Severity", "All levels"],
-              ["Date range", "Last 30 days"],
-              ["Data source", "All sources"],
-            ].map(([label, val]) => (
-              <label
-                key={label}
-                className="text-xs font-bold text-[hsl(var(--muted-foreground))]"
-              >
-                {label}
-                <select
-                  className="mt-1 h-10 w-full border border-[hsl(var(--input))] bg-[hsl(var(--card))] px-2 font-normal text-[hsl(var(--foreground))]"
-                  data-testid={`select-filter-${label.toLowerCase().replace(" ", "-")}`}
-                >
-                  <option>{val}</option>
-                  <option>Moderate and high only</option>
-                </select>
-              </label>
-            ))}
-          </div>
-          <div className="mt-6 border-t border-[hsl(var(--border))] pt-5 text-xs leading-5 text-[hsl(var(--muted-foreground))]">
-            <CircleHelp size={14} className="mb-2" />
-            Severity combines reporting farms, growth, clustering, confidence,
-            confirmations, weather suitability and duplicate filtering.
-          </div>
-        </Box>
-      </div>
-      <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_1fr]">
-        <Box>
-          <SectionLabel eyebrow="Highest attention">
-            Districts to review
-          </SectionLabel>
-          <div className="space-y-1">
-            {districtSummaries.map((d) => (
-              <Link
-                href={`/insights/district/${d.district.toLowerCase()}`}
-                key={d.district}
-                className="flex items-center justify-between border-b border-[hsl(var(--border))] py-3 last:border-0"
-                data-testid={`link-district-${d.district.toLowerCase()}`}
-              >
-                <div>
-                  <div className="text-sm font-bold">{d.district}</div>
-                  <div className="text-xs text-[hsl(var(--muted-foreground))]">
-                    {d.state} · {d.reports} reports · {d.farms} farms
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="font-mono text-xs">{d.change}</span>
-                  <SeverityBadge severity={d.severity} small />
-                </div>
-              </Link>
-            ))}
-          </div>
-        </Box>
-        <Box>
-          <SectionLabel eyebrow="30-day movement">Reports by week</SectionLabel>
-          <MiniBar values={trend} />
-          <div className="mt-4 flex justify-between text-xs text-[hsl(var(--muted-foreground))]">
-            <span>01 Mar</span>
-            <span>31 Mar · 66 reports</span>
-          </div>
-          <div className="mt-6 border-t border-[hsl(var(--border))] pt-5 text-sm leading-6">
-            <span className="font-bold text-[hsl(var(--primary))]">
-              +31% in Cuttack
-            </span>{" "}
-            compared with the previous period. The rise is a regional signal and
-            not proof of a single cause.
-          </div>
-        </Box>
-      </div>
-    </AppShell>
-  )}</LocalizedContent>;
-}
+export function RegionalOverview(props: { locale: LocaleKey; setLocale: (locale: LocaleKey) => void }) { return <RealInsights {...props} />; }
+export function RegionalIntelligence(props: { locale: LocaleKey; setLocale: (locale: LocaleKey) => void }) { return <RealInsights {...props} patterns />; }
+export function RegionalDistrict(props: { locale: LocaleKey; setLocale: (locale: LocaleKey) => void }) { return <RealInsights {...props} />; }
 
-export function RegionalIntelligence({
-  locale,
-  setLocale,
-}: {
-  locale: LocaleKey;
-  setLocale: (v: LocaleKey) => void;
-}) {
-  return <LocalizedContent>{(
-    <AppShell role="insights" locale={locale} setLocale={setLocale}>
-      <PageHeader
-        eyebrow="Regional insights / pattern analysis"
-        title="When weather and reports move together"
-      >
-        <Provenance kind="sample" />
-      </PageHeader>
-      <InsightTabs active="intelligence" />
-      <div className="grid gap-5 lg:grid-cols-[1.2fr_.8fr]">
-        <Box>
-          <div className="flex items-start justify-between">
-            <SectionLabel eyebrow="Pattern signal">
-              Coastal Odisha · rice
-            </SectionLabel>
-            <span className="font-mono text-xs text-[hsl(var(--primary))]">
-              r = 0.61
-            </span>
-          </div>
-          <div
-            className="mt-2 grid grid-cols-12 items-end gap-2 border-b border-l border-[hsl(var(--border))] p-4"
-            style={{ height: 220 }}
-          >
-            {trend.map((v, i) => (
-              <div key={i} className="relative h-full">
-                <div
-                  className="absolute bottom-0 w-full bg-[hsl(var(--primary))]"
-                  style={{ height: `${(v / 70) * 100}%` }}
-                />
-                <div
-                  className="absolute bottom-0 w-1/2 translate-x-full bg-[hsl(var(--accent))]"
-                  style={{ height: `${Math.max(12, ((v - 7) / 70) * 100)}%` }}
-                />
-              </div>
-            ))}
-          </div>
-          <div className="mt-4 flex gap-5 text-xs">
-            <span className="flex items-center gap-2">
-              <i className="h-2 w-2 bg-[hsl(var(--primary))]" />
-              Reported scans
-            </span>
-            <span className="flex items-center gap-2">
-              <i className="h-2 w-2 bg-[hsl(var(--accent))]" />
-              Humidity / rain index
-            </span>
-          </div>
-        </Box>
-        <Box>
-          <SectionLabel eyebrow="Read with care">
-            Correlation, not causation
-          </SectionLabel>
-          <p className="text-sm leading-7 text-[hsl(var(--muted-foreground))]">
-            This comparison uses 18 reports from 01–31 March and a weather index
-            from the approximate district centroid. It helps decide where to
-            look next; it does not prove that weather caused the condition.
-          </p>
-          <div className="mt-6 space-y-3 text-sm">
-            <div className="flex justify-between border-b border-[hsl(var(--border))] pb-3">
-              <span>Sample size</span>
-              <b>18 reports · 14 farms</b>
-            </div>
-            <div className="flex justify-between border-b border-[hsl(var(--border))] pb-3">
-              <span>Window</span>
-              <b>31 days</b>
-            </div>
-            <div className="flex justify-between">
-              <span>Signal</span>
-              <b className="text-[hsl(var(--primary))]">Investigate</b>
-            </div>
-          </div>
-        </Box>
-      </div>
-      <div className="mt-5 grid gap-5 md:grid-cols-3">
-        {[
-          [
-            "Hotspot clusters",
-            "3 clusters exceed the district baseline.",
-            MapPin,
-          ],
-          ["Anomaly indicator", "+2.4σ report growth this week.", BarChart3],
-          [
-            "Weather signature",
-            "Humidity stayed above 75% for 5 days.",
-            CloudRain,
-          ],
-        ].map(([title, text, Icon]) => (
-          <Box key={title as string}>
-            <Icon size={19} className="text-[hsl(var(--primary))]" />
-            <h3 className="mt-6 font-bold">{title as string}</h3>
-            <p className="mt-2 text-sm leading-6 text-[hsl(var(--muted-foreground))]">
-              {text as string}
-            </p>
-          </Box>
-        ))}
-      </div>
-      <Box className="mt-5">
-          <SectionLabel eyebrow="Model engineering">
-          Offline evaluation and cache
-        </SectionLabel>
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="border border-[hsl(var(--border))] p-4">
-            <div className="flex items-center justify-between">
-              <b>Sample evaluation snapshot</b>
-              <Provenance kind="sample" />
-            </div>
-            <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <Metric
-                label="Reviewed images"
-                value={String(modelEvaluation.reviewed)}
-              />
-              <Metric label="Changed" value={String(modelEvaluation.changed)} />
-              <Metric label="Skipped" value="1,284" />
-              <Metric label="Candidate" value={modelEvaluation.candidate} />
-            </div>
-            <div className="mt-5 text-xs text-[hsl(var(--muted-foreground))]">
-              Evaluated {modelEvaluation.evaluated} · {modelEvaluation.status}
-            </div>
-          </div>
-          <div className="border border-[hsl(var(--border))] p-4">
-            <div className="flex items-center justify-between">
-              <b>Inference-cache experiment</b>
-              <Provenance kind="cache" />
-            </div>
-            {cacheEntries.map((entry) => (
-              <div
-                key={entry.condition}
-                className="mt-4 border-t border-[hsl(var(--border))] pt-4"
-              >
-                <div className="text-sm font-bold">{entry.condition}</div>
-                <div className="mt-2 grid grid-cols-3 gap-3 text-xs">
-                  <span>
-                    Full inference <b className="block text-sm">{entry.full}</b>
-                  </span>
-                  <span>
-                    Cache match{" "}
-                    <b className="block text-sm text-[hsl(var(--primary))]">
-                      {entry.cached}
-                    </b>
-                  </span>
-                  <span>
-                    Validations{" "}
-                    <b className="block text-sm">{entry.validations}</b>
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </Box>
-    </AppShell>
-  )}</LocalizedContent>;
-}
-
-export function RegionalDistrict({
-  locale,
-  setLocale,
-}: {
-  locale: LocaleKey;
-  setLocale: (v: LocaleKey) => void;
-}) {
-  const { id } = useParams();
-  const district =
-    districtSummaries.find((d) => d.district.toLowerCase() === id) ??
-    districtSummaries[0];
-  return <LocalizedContent>{(
-    <AppShell role="insights" locale={locale} setLocale={setLocale}>
-      <PageHeader
-        eyebrow={`Regional insights / district · ${district.state}`}
-        title={`${district.district} district brief`}
-      >
-        <Button
-          href="/insights"
-          variant="outline"
-          testId="button-district-back"
-        >
-          Back to national view
-        </Button>
-      </PageHeader>
-      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric
-          label="Current severity"
-          value={
-            district.severity[0].toUpperCase() + district.severity.slice(1)
-          }
-          tone={
-            district.severity === "high"
-              ? "red"
-              : district.severity === "moderate"
-                ? "amber"
-                : "default"
-          }
-        />
-        <Metric
-          label="Reports"
-          value={String(district.reports)}
-          note="last 30 days"
-        />
-        <Metric
-          label="Unique farms"
-          value={String(district.farms)}
-          note="duplicate filtered"
-        />
-        <Metric label="Change" value={district.change} note="previous period" />
-      </div>
-      <Box className="mt-6 p-3">
-        <div className="mb-3 flex flex-wrap items-start justify-between gap-3 px-2">
-          <div>
-            <div className="font-bold">Where this signal is located</div>
-            <div className="text-xs text-[hsl(var(--muted-foreground))]">
-              District-centre reference · sample regional record
-            </div>
-          </div>
-          <Provenance kind="sample">Sample regional data</Provenance>
-        </div>
-        <WellfarmMap
-          ariaLabel={`Map showing ${district.district} district in ${district.state}`}
-          className="h-[300px] sm:h-[380px]"
-          center={[district.latitude, district.longitude]}
-          zoom={9}
-          approximateRadiusMeters={18000}
-          points={[
-            {
-              latitude: district.latitude,
-              longitude: district.longitude,
-              label: `${district.district}, ${district.state}`,
-              detail: `${district.reports} reports · ${district.severity} severity`,
-              severity: district.severity,
-            },
-          ]}
-        />
-      </Box>
-      <div className="mt-6 grid gap-5 lg:grid-cols-2">
-        <Box>
-          <SectionLabel eyebrow="District pattern">
-            Seven and thirty-day trend
-          </SectionLabel>
-          <MiniBar values={[4, 6, 5, 8, 7, 11, 9, 13, 12, 15, 14, 18]} />
-          <div className="mt-4 flex justify-between text-xs text-[hsl(var(--muted-foreground))]">
-            <span>01 Mar</span>
-            <span>31 Mar</span>
-          </div>
-          <div className="mt-6 grid grid-cols-2 gap-4 border-t border-[hsl(var(--border))] pt-5 text-sm">
-            <div>
-              <div className="text-xs text-[hsl(var(--muted-foreground))]">
-                Reviewed sample records
-              </div>
-              <b>6 · 33%</b>
-            </div>
-            <div>
-              <div className="text-xs text-[hsl(var(--muted-foreground))]">
-                Recent records
-              </div>
-              <b>4</b>
-            </div>
-          </div>
-        </Box>
-        <Box>
-          <SectionLabel eyebrow="Crop / condition breakdown">
-            What is being reported
-          </SectionLabel>
-          {[
-            ["Rice bacterial leaf blight", 48],
-            ["Rice brown spot", 26],
-            ["Healthy / other", 26],
-          ].map(([label, value]) => (
-            <div key={label as string} className="mb-5">
-              <div className="flex justify-between text-sm">
-                <span>{label as string}</span>
-                <b>{value as number}%</b>
-              </div>
-              <div className="mt-2 h-2 bg-[hsl(var(--muted))]">
-                <div
-                  className="h-full bg-[hsl(var(--primary))]"
-                  style={{ width: `${value}%` }}
-                />
-              </div>
-            </div>
-          ))}
-          <div className="mt-7 border-t border-[hsl(var(--border))] pt-5 text-sm leading-6 text-[hsl(var(--muted-foreground))]">
-            Weather pattern: 78% humidity and 7.4 mm rain today. Suitable
-            conditions are a reason to investigate, not proof of causation.
-          </div>
-        </Box>
-      </div>
-      <Box className="mt-5">
-        <SectionLabel eyebrow="Suggested exploration">
-          Next practical steps
-        </SectionLabel>
-        <div className="grid gap-3 md:grid-cols-3">
-          {[
-            "Compare the cluster with the previous period",
-            "Review the contributing sample records",
-            "Recheck the trend after the next rainfall event",
-          ].map((a, i) => (
-            <div
-              key={a}
-              className="border-l-2 border-[hsl(var(--primary))] p-3"
-            >
-              <span className="font-mono text-[10px] text-[hsl(var(--muted-foreground))]">
-                0{i + 1}
-              </span>
-              <p className="mt-2 text-sm font-semibold">{a}</p>
-            </div>
-          ))}
-        </div>
-      </Box>
-    </AppShell>
-  )}</LocalizedContent>;
-}
 export function Transparency({
   locale,
   setLocale,
@@ -2222,7 +1723,7 @@ export function Transparency({
     {
       kind: "live" as const,
       title: "Live weather",
-      text: "Fetched from Open-Meteo when permission, network and coordinates are available. Otherwise the screen clearly identifies sample weather.",
+      text: "Fetched from Open-Meteo when permission, network and coordinates are available. Otherwise the screen shows weather unavailable.",
     },
     {
       kind: "model" as const,
@@ -2230,9 +1731,9 @@ export function Transparency({
       text: "A ranked visual indication with uncertainty. It is not an independently confirmed diagnosis and should not drive chemical treatment alone.",
     },
     {
-      kind: "sample" as const,
-      title: "Sample regional data",
-      text: "Deterministic non-user records support maps and trend exploration. They are not a live surveillance feed.",
+      kind: "local" as const,
+      title: "Saved scan aggregates",
+      text: "Charts use saved scan dates, crops and model predictions. They do not measure confirmed outbreaks or unique farms.",
     },
     {
       kind: "local" as const,
@@ -2246,7 +1747,7 @@ export function Transparency({
       <main className="mx-auto max-w-[1100px] px-5 py-14 lg:px-8">
         <PageHeader
           eyebrow="Wellfarm / data transparency"
-          title="A clear line between live, model-generated, local and sample data."
+          title="A clear line between live weather, model predictions and saved records."
         >
           <Button
             href="/workspaces"
@@ -2279,7 +1780,7 @@ export function Transparency({
               ],
               [
                 "Regional insights",
-                "Aggregated counts, trends and patterns across farms.",
+                "Counts and trends from the latest 100 saved scans.",
               ],
             ].map(([title, text]) => (
               <div
@@ -2300,15 +1801,14 @@ export function Transparency({
           </SectionLabel>
           <p className="max-w-3xl text-sm leading-7 text-[hsl(var(--muted-foreground))]">
             Weather, crop analysis, history and regional calculations sit behind
-            replaceable service adapters. Stable sample fixtures keep analytical
-            screens useful without implying an external data partnership.
+            service adapters. Missing data produces an unavailable or empty state.
           </p>
           <div className="mt-5 flex flex-wrap gap-2">
             <span className="border border-[hsl(var(--border))] px-3 py-2 font-mono text-[10px]">
               Open-Meteo adapter
             </span>
             <span className="border border-[hsl(var(--border))] px-3 py-2 font-mono text-[10px]">
-              Deterministic mock service
+              Local scan database
             </span>
             <span className="border border-[hsl(var(--border))] px-3 py-2 font-mono text-[10px]">
               Approximate geometry fallback
