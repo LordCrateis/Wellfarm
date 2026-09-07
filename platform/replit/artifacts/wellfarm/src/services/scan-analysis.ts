@@ -10,6 +10,7 @@ export interface ScanAnalysisResult {
   mode: "preview" | "model";
   crop: Crop;
   supported: boolean;
+  lowConfidence?: boolean;
   candidates: AnalysisCandidate[];
   severity: Severity;
   severityBasis: string;
