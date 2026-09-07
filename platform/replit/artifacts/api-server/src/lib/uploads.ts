@@ -71,8 +71,10 @@ export function storedImagePath(filename: string): string | undefined {
 
 export function removeStoredImage(filename: string): void {
   const fullPath = storedImagePath(filename);
-  if (fullPath && existsSync(fullPath)) {
-    unlinkSync(fullPath);
+  if (fullPath) {
+    for (const target of [fullPath, `${fullPath}.analysis.json`, `${fullPath}.analysis.json.tmp`]) {
+      if (existsSync(target)) unlinkSync(target);
+    }
   }
 }
 
