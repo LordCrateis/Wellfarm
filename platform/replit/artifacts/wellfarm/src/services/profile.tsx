@@ -27,43 +27,46 @@ export function normalizeProfile(value: unknown): Profile {
 export function profileInitials(name: string) {
   return name.trim().split(/\s+/u).filter(Boolean).slice(0, 2).map(word => Array.from(word)[0]).join("").toLocaleUpperCase() || "WF";
 }
-function readProfile() {
-  try { return normalizeProfile(JSON.parse(localStorage.getItem(PROFILE_KEY) ?? "null")); } catch { return { ...emptyProfile }; }
-}
-function readActivity(): string[] {
-  try {
-    const value: unknown = JSON.parse(localStorage.getItem(READ_KEY) ?? "[]");
-    return Array.isArray(value) ? value.filter(id => typeof id === "string").slice(-1000) : [];
-  } catch { return []; }
-}
+
 interface AccountState {
   profile: Profile;
   readIds: string[];
-  saveProfile: (value: Profile) => boolean;
+  account: {id: string; email: string} | null;
+  loading: boolean;
+  saveProfile: (value: Profile) => Promise<boolean>;
   markRead: (ids: string[]) => boolean;
+  logout: () => Promise<void>;
 }
 const AccountContext = createContext<AccountState | null>(null);
 export function AccountProvider({ children }: { children: ReactNode }) {
-  const [profile, setProfile] = useState(readProfile);
-  const [readIds, setReadIds] = useState(readActivity);
+  const [profile, setProfile] = useState<Profile>(emptyProfile);
+  const [account, setAccount] = useState<AccountState["account"]>(null);
+  const [loading, setLoading] = useState(true);
+  const [readIds, setReadIds] = useState<string[]>([]);
   useEffect(() => {
-    const sync = (event: StorageEvent) => {
-      if (event.key === PROFILE_KEY || event.key === null) setProfile(readProfile());
-      if (event.key === READ_KEY || event.key === null) setReadIds(readActivity());
-    };
-    window.addEventListener("storage", sync);
-    return () => window.removeEventListener("storage", sync);
+    let active = true;
+    try { localStorage.removeItem(PROFILE_KEY); localStorage.removeItem(READ_KEY); } catch {}
+    fetch("/api/auth/me").then(async response => {
+      if (!response.ok) return;
+      const data = await response.json();
+      if (active) { setAccount({id: data.id, email: data.email}); setProfile(normalizeProfile(data.profile)); }
+    }).finally(() => { if (active) setLoading(false); }).catch(() => {});
+    return () => { active = false; };
   }, []);
-  const saveProfile = useCallback((value: Profile) => {
-    const next = normalizeProfile(value);
-    try { localStorage.setItem(PROFILE_KEY, JSON.stringify(next)); setProfile(next); return true; } catch { return false; }
+  const saveProfile = useCallback(async (value: Profile) => {
+    try {
+      const response = await fetch("/api/account/profile", {method: "PUT", headers: {"Content-Type": "application/json"}, body: JSON.stringify(normalizeProfile(value))});
+      if (!response.ok) return false;
+      setProfile(normalizeProfile(await response.json())); return true;
+    } catch { return false; }
   }, []);
-  const markRead = useCallback((ids: string[]) => {
-    // Re-read storage to merge changes made in another tab.
-    const next = [...new Set([...readActivity(), ...ids])].slice(-1000);
-    try { localStorage.setItem(READ_KEY, JSON.stringify(next)); setReadIds(next); return true; } catch { return false; }
+  const markRead = useCallback((ids: string[]) => { setReadIds(current => [...new Set([...current,...ids])]); return true; }, []);
+  const logout = useCallback(async () => {
+    const response = await fetch("/api/auth/logout", {method: "POST"});
+    if (!response.ok) throw new Error("Logout failed. Please retry.");
+    window.location.assign("/login");
   }, []);
-  return <AccountContext.Provider value={{ profile, readIds, saveProfile, markRead }}>{children}</AccountContext.Provider>;
+  return <AccountContext.Provider value={{profile, readIds, account, loading, saveProfile, markRead, logout}}>{children}</AccountContext.Provider>;
 }
 export function useAccount() {
   const account = useContext(AccountContext);
