@@ -55,6 +55,7 @@ import { AppShell, LanguageSelect, PublicNav } from "@/components/AppShell";
 import { WellfarmMap } from "@/components/WellfarmMap";
 import { ScanResultCard } from "@/components/ScanResultCard";
 import { BackLink } from "@/components/BackLink";
+import { useAccount } from "@/services/profile";
 import {
   MiniBar,
   Provenance,
@@ -508,6 +509,7 @@ export function FarmerHome({
   setLocale: (v: LocaleKey) => void;
 }) {
   const t = locales.en;
+  const { profile } = useAccount();
   const [fieldWeather, setFieldWeather] = useState<DisplayWeather>({
     ...weather,
     freshness: "sample",
@@ -547,7 +549,7 @@ export function FarmerHome({
 
   return <LocalizedContent>{(
     <AppShell role="farmer" locale={locale} setLocale={setLocale}>
-      <PageHeader eyebrow="Farmer fieldbook / 01" title={t.farmer.hello}>
+      <PageHeader eyebrow="Farmer fieldbook / 01" title={profile.name ? `Welcome, ${profile.name}` : "Your fieldbook"}>
         <Button href="/farmer/scan" testId="button-farmer-scan">
           <Leaf size={17} />
           {t.actions.scan}
@@ -719,8 +721,9 @@ export function ScanJourney({
 }) {
   const t = locales.en;
   const hasMobileCamera = useMobileCamera();
+  const { profile } = useAccount();
   const [step, setStep] = useState(1);
-  const [crop, setCrop] = useState<Crop>("Rice");
+  const [crop, setCrop] = useState<Crop>(() => profile.crops[0] as Crop || "Rice");
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
@@ -834,11 +837,12 @@ export function ScanJourney({
         longitude: location.longitude,
       });
       await uploadCropImage(scan.id, photo);
+      window.dispatchEvent(new Event("wellfarm:scans-changed"));
       const weatherContext = await weatherService.getCurrentWeather(
         location.latitude,
         location.longitude,
       );
-      const diagnosis = await analyzeCropScan(crop);
+      const diagnosis = await analyzeCropScan(scan.id);
       const context: AdvisoryContext = {
         symptoms: symptomList,
         affectedPart,
@@ -855,9 +859,9 @@ export function ScanJourney({
       setExplanation(advisory);
       setAdvisoryContext(context);
       setStep(4);
-    } catch {
+    } catch (error) {
       setSubmissionError(
-        "Wellfarm could not save this scan. Check that the local API is running, then try again.",
+        error instanceof Error ? error.message : "Wellfarm could not complete this scan. Check that the local API is running, then try again.",
       );
     } finally {
       setAnalysis(false);
@@ -1319,6 +1323,7 @@ export function FarmerHistory({
   const { id } = useParams();
   const [records, setRecords] = useState<Scan[]>([]);
   const [selectedScan, setSelectedScan] = useState<Scan | null>(null);
+  const [savedAnalysis, setSavedAnalysis] = useState<ScanAnalysisResult | null>(null);
   const [locationLabel, setLocationLabel] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -1328,6 +1333,11 @@ export function FarmerHistory({
     setLoading(true);
     setLoadError(false);
     setSelectedScan(null);
+    setSavedAnalysis(null);
+    if (id) fetch(`/api/scans/${encodeURIComponent(id)}/analysis`)
+      .then(response => response.ok ? response.json() : null)
+      .then(result => { if (active) setSavedAnalysis(result); })
+      .catch(() => { if (active) setSavedAnalysis(null); });
 
     const request = id ? getScanRecord(id) : listScanRecords();
     request
@@ -1422,6 +1432,18 @@ export function FarmerHistory({
             </Box>
 
             <div className="space-y-5">
+              {savedAnalysis && (
+                <Box>
+                  <h2 className="font-bold">Leading model indication</h2>
+                  <p className="mt-2 text-sm">{savedAnalysis.summary}</p>
+                  {savedAnalysis.candidates.map(candidate => (
+                    <p key={candidate.condition} className="mt-3 flex justify-between gap-3 text-sm">
+                      <span>{candidate.condition}</span><span>{Math.round(candidate.confidence * 100)}%</span>
+                    </p>
+                  ))}
+                  <p className="mt-3 text-xs text-[hsl(var(--muted-foreground))]">{savedAnalysis.limitations[0]}</p>
+                </Box>
+              )}
               <Box>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
