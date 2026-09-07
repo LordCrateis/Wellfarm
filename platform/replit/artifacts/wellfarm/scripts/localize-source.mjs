@@ -4,7 +4,7 @@ import { readFileSync, writeFileSync, readdirSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../src");
-const files = ["pages/Pages.tsx", "pages/not-found.tsx", "components/AppShell.tsx", "components/ScanResultCard.tsx", "components/Status.tsx", "components/WellfarmMap.tsx", "components/error-boundary.tsx", "components/BackLink.tsx"];
+const files = ["pages/Pages.tsx", "pages/Profile.tsx", "pages/not-found.tsx", "components/AccountControls.tsx", "components/AppShell.tsx", "components/ScanResultCard.tsx", "components/Status.tsx", "components/WellfarmMap.tsx", "components/error-boundary.tsx", "components/BackLink.tsx"];
 const normalize = s => s.replace(/\s+/g, " ").trim();
 const messages = new Set(["Zoom in", "Zoom out", "Close", "Back to home", "Back to workspaces", "Back to field home", "Back to scan history", "Back to regional overview"]);
 function add(s, visible = false) {
