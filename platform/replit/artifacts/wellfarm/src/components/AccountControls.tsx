@@ -56,7 +56,7 @@ export function AccountControls() {
       </PopoverContent>
     </Popover>
     <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-      <DropdownMenuTrigger asChild><button type="button" data-testid="button-profile" aria-label={t("Open profile menu")} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-primary/15 bg-secondary text-sm font-bold text-primary hover:ring-2 hover:ring-primary/30 focus-visible:outline focus-visible:outline-2"><span translate="no">{profileInitials(profile.name)}</span></button></DropdownMenuTrigger>
+      <DropdownMenuTrigger asChild><button type="button" data-testid="button-profile" aria-label={t("Open profile menu")} className="inline-flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-primary/15 bg-secondary text-sm font-bold text-primary hover:ring-2 hover:ring-primary/30 focus-visible:outline focus-visible:outline-2">{profile.avatar ? <img src={profile.avatar} alt="" className="h-full w-full object-cover" /> : <span translate="no">{profileInitials(profile.name)}</span>}</button></DropdownMenuTrigger>
       <DropdownMenuContent align="end" sideOffset={12} collisionPadding={12} className="w-64 max-w-[calc(100vw-24px)] rounded-xl p-2">
         <DropdownMenuLabel><span className="block truncate" translate="no">{profile.name || t("Your profile")}</span><span className="mt-1 block text-xs font-normal text-muted-foreground">Saved in this browser</span></DropdownMenuLabel>
         <DropdownMenuSeparator />
