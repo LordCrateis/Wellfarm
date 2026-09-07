@@ -9,7 +9,8 @@ import { profileInitials, useAccount } from "@/services/profile";
 import { listScanRecords } from "@/services/adapters";
 
 export function AccountControls() {
-  const { profile, readIds, markRead } = useAccount();
+  const { profile, readIds, markRead, logout } = useAccount();
+  const [logoutError, setLogoutError] = useState("");
   const { locale, t } = useTranslation();
   const [path, navigate] = useLocation();
   const [open, setOpen] = useState(false);
@@ -58,7 +59,7 @@ export function AccountControls() {
     <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
       <DropdownMenuTrigger asChild><button type="button" data-testid="button-profile" aria-label={t("Open profile menu")} className="inline-flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-primary/15 bg-secondary text-sm font-bold text-primary hover:ring-2 hover:ring-primary/30 focus-visible:outline focus-visible:outline-2">{profile.avatar ? <img src={profile.avatar} alt="" className="h-full w-full object-cover" /> : <span translate="no">{profileInitials(profile.name)}</span>}</button></DropdownMenuTrigger>
       <DropdownMenuContent align="end" sideOffset={12} collisionPadding={12} className="w-64 max-w-[calc(100vw-24px)] rounded-xl p-2">
-        <DropdownMenuLabel><span className="block truncate" translate="no">{profile.name || t("Your profile")}</span><span className="mt-1 block text-xs font-normal text-muted-foreground">Saved in this browser</span></DropdownMenuLabel>
+        <DropdownMenuLabel><span className="block truncate" translate="no">{profile.name || t("Your profile")}</span><span className="mt-1 block text-xs font-normal text-muted-foreground">Account profile</span></DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={() => navigate("/profile")}><UserRound />Profile and preferences</DropdownMenuItem>
         <DropdownMenuItem onSelect={() => navigate(profile.workspace === "farmer" ? "/farmer" : "/insights")}><ArrowRight />Open my workspace</DropdownMenuItem>
@@ -66,6 +67,8 @@ export function AccountControls() {
         <DropdownMenuItem onSelect={() => navigate("/workspaces")}><ArrowRight />Switch workspace</DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={() => navigate("/transparency")}><Settings />Privacy and transparency</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => { void logout().catch(() => setLogoutError("Logout failed. Please retry.")); }}><ArrowRight />Log out</DropdownMenuItem>
+        {logoutError && <p role="alert" className="p-2 text-sm text-destructive">{logoutError}</p>}
       </DropdownMenuContent>
     </DropdownMenu>
   </LocalizedContent>;
