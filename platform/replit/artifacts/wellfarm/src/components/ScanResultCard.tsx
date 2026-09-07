@@ -60,7 +60,7 @@ export function ScanResultCard({
 }: ScanResultCardProps) {
   const primary = result.candidates[0];
   const isPreview = result.mode === "preview";
-  const lowConfidence = primary.confidence < 0.6;
+  const lowConfidence = result.lowConfidence ?? primary.confidence < 0.7;
   const guidance: AdvisoryExplanation = explanation ?? {
     source: "fallback",
     model: null,
@@ -125,7 +125,7 @@ export function ScanResultCard({
               {Math.round(primary.confidence * 100)}%
             </div>
             <div className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">
-              {confidenceLabel(primary.confidence)}
+              {lowConfidence ? "Low confidence" : confidenceLabel(primary.confidence)}
             </div>
           </div>
         </div>
