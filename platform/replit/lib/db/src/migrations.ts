@@ -66,6 +66,16 @@ const migrations = [
       CREATE INDEX advisories_diagnosis_id_idx ON advisories(diagnosis_id);
     `,
   },
+  {
+    id: "0002_accounts",
+    sql: `
+      CREATE TABLE accounts (id TEXT PRIMARY KEY, email TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, profile TEXT NOT NULL DEFAULT '{}');
+      CREATE TABLE sessions (token_hash TEXT PRIMARY KEY, account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE, expires_at INTEGER NOT NULL);
+      CREATE TABLE scan_owners (scan_id TEXT PRIMARY KEY REFERENCES scans(id) ON DELETE CASCADE, account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE);
+      CREATE INDEX scan_owners_account ON scan_owners(account_id);
+      CREATE TABLE feedback (id TEXT PRIMARY KEY, account_id TEXT REFERENCES accounts(id) ON DELETE CASCADE, message TEXT NOT NULL, created_at INTEGER NOT NULL);
+    `,
+  },
 ] as const;
 
 export function runMigrations(sqlite: Database.Database): void {
