@@ -1,7 +1,7 @@
 // Runs real checkpoint inference against an isolated local API and temporary database.
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { mkdtemp, readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 const root = process.cwd();
@@ -41,5 +41,10 @@ try {
   assert.equal((await (await fetch(`${base}/scans/${scan.id}`)).json()).status, 'completed');
   assert.deepEqual(await (await fetch(`${base}/scans/${scan.id}/analysis`)).json(), result);
   assert.equal((await fetch(`${base}/scans/missing/analysis`, { method: 'POST' })).status, 404);
+  assert.ok((await readdir(join(directory, 'uploads'))).some(name => name.endsWith('.analysis.json')));
+  assert.equal((await fetch(`${base}/scans/${scan.id}`, { method: 'DELETE' })).status, 204);
+  assert.equal((await fetch(`${base}/scans/${scan.id}`)).status, 404);
+  assert.equal((await fetch(`${base}/scans/${scan.id}/analysis`)).status, 404);
+  assert.deepEqual(await readdir(join(directory, 'uploads')), []);
   console.log(JSON.stringify({ passed: true, inferenceSeconds: (Date.now() - start) / 1000, candidates: result.candidates, testDirectory: directory }, null, 2));
 } finally { server.kill(); }
