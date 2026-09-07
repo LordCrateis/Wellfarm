@@ -65,11 +65,23 @@ export function WellfarmMap({
 
     const map = L.map(mapNode.current, {
       attributionControl: true,
-      scrollWheelZoom: false,
+      scrollWheelZoom: true,
       zoomControl: false,
       minZoom: 3,
     });
     map.attributionControl.setPrefix(false);
+    const node = mapNode.current;
+    // Capture Ctrl-wheel/trackpad pinch before the browser changes page zoom.
+    // Ordinary wheel events are handled by Leaflet and never reach page scroll.
+    const wheel = (event: WheelEvent) => {
+      event.preventDefault();
+      if (event.ctrlKey || event.metaKey) {
+        event.stopImmediatePropagation();
+        const point = map.mouseEventToContainerPoint(event);
+        map.setZoomAround(point, map.getZoom() + (event.deltaY < 0 ? 1 : -1));
+      }
+    };
+    node.addEventListener("wheel", wheel, { passive: false, capture: true });
     L.control.zoom({ zoomInTitle: t("Zoom in"), zoomOutTitle: t("Zoom out") }).addTo(map);
 
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -146,6 +158,7 @@ export function WellfarmMap({
 
     return () => {
       window.clearTimeout(settleTimer);
+      node.removeEventListener("wheel", wheel, true);
       observer.disconnect();
       map.remove();
     };
