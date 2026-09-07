@@ -17,6 +17,7 @@ function projectRoot() {
   return directory;
 }
 let busy = false;
+export const isVisionBusy = () => busy;
 
 export async function analyzeScan(scan: Scan, savedOnly = false) {
   const image = scan.imagePath && storedImagePath(scan.imagePath);
