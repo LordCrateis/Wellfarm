@@ -3,6 +3,7 @@ import { extname } from "node:path";
 import { Router, type IRouter, type RequestHandler } from "express";
 import { desc, eq } from "drizzle-orm";
 import multer from "multer";
+import { analyzeScan } from "../services/vision";
 import {
   CreateScanBody,
   CreateScanResponse,
@@ -234,7 +235,7 @@ router.post(
 
       const scan = db
         .update(scans)
-        .set({ imagePath: file.filename, updatedAt: new Date() })
+        .set({ imagePath: file.filename, status: "pending", updatedAt: new Date() })
         .where(eq(scans.id, existingScan.id))
         .returning()
         .get();
@@ -279,6 +280,31 @@ router.get("/scans/:scanId/image", requireExistingScan, (_req, res, next) => {
   res.setHeader("Cache-Control", "private, max-age=3600");
   stream.on("error", next);
   stream.pipe(res);
+});
+
+router.post("/scans/:scanId/analysis", requireExistingScan, async (_req, res) => {
+  try {
+    const scan = res.locals.scan as Scan;
+    const result = await analyzeScan(scan);
+    // Do not mark a replacement photo complete while an older photo is running.
+    const current = findScan(scan.id);
+    if (current?.imagePath === scan.imagePath) {
+      db.update(scans).set({ status: "completed", updatedAt: new Date() }).where(eq(scans.id, scan.id)).run();
+    }
+    res.json(result);
+  } catch (error) {
+    const message = error instanceof Error && (error.message.startsWith("Upload") || error.message.startsWith("Another"))
+      ? error.message : "Image analysis is unavailable. Check the model files and Python environment, then retry.";
+    res.status(503).json({ error: { code: "ANALYSIS_UNAVAILABLE", message } });
+  }
+});
+
+router.get("/scans/:scanId/analysis", requireExistingScan, async (_req, res, next) => {
+  try {
+    const result = await analyzeScan(res.locals.scan as Scan, true);
+    if (!result) { res.status(404).json({ error: { code: "NO_ANALYSIS", message: "This photo has not been analyzed yet." } }); return; }
+    res.json(result);
+  } catch (error) { next(error); }
 });
 
 export default router;
