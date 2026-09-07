@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { FormSelect } from "@/components/FormSelect";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { Check, Leaf, Save, ShieldCheck } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
@@ -16,6 +17,7 @@ export function ProfilePage({ locale, setLocale }: { locale: LocaleKey; setLocal
   useEffect(() => setDraftLocale(locale), [locale]);
   const [feedback, setFeedback] = useState<"saved" | "error" | null>(null);
   const [photoError, setPhotoError] = useState("");
+  const photoInput = useRef<HTMLInputElement>(null);
   const uploadAvatar = async (file?: File) => {
     if (!file) return;
     setPhotoError("");
@@ -40,7 +42,8 @@ export function ProfilePage({ locale, setLocale }: { locale: LocaleKey; setLocal
       <aside className="space-y-5">
         <section className="rounded-xl border bg-card p-6">
           <div className="grid h-20 w-20 overflow-hidden place-items-center rounded-full bg-secondary text-2xl font-bold text-primary" translate="no">{draft.avatar ? <img src={draft.avatar} alt="Profile photo preview" className="h-full w-full object-cover" /> : profileInitials(profile.name)}</div>
-          <label className="mt-4 block text-sm font-semibold">Profile photo<input type="file" accept="image/jpeg,image/png,image/webp" onChange={event => { void uploadAvatar(event.target.files?.[0]); event.target.value = ""; }} className="mt-2 block w-full text-xs" /></label>
+          <button type="button" onClick={() => photoInput.current?.click()} className="mt-4 inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground" data-testid="button-change-profile-photo">Change profile photo</button>
+          <input ref={photoInput} type="file" accept="image/jpeg,image/png,image/webp" aria-label="Choose profile photo" onChange={event => { void uploadAvatar(event.target.files?.[0]); event.target.value = ""; }} className="hidden" />
           {draft.avatar && <button type="button" onClick={() => setDraft(current => ({ ...current, avatar: undefined }))} className="mt-2 text-sm text-primary">Remove photo</button>}
           <p className="mt-2 text-xs text-muted-foreground">Choose a photo, then save your profile.</p>
           {photoError && <p role="alert" className="mt-2 text-sm text-destructive">{photoError}</p>}
@@ -61,8 +64,8 @@ export function ProfilePage({ locale, setLocale }: { locale: LocaleKey; setLocal
           <fieldset className="mt-6"><legend className="text-sm font-semibold">Crops you grow</legend><p className="mt-1 text-xs text-muted-foreground">Choose any of the crops currently supported by Wellfarm.</p><div className="mt-3 flex flex-wrap gap-2">{crops.map(crop => <label key={crop} className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm ${draft.crops.includes(crop) ? "border-primary bg-secondary/50 text-primary" : "border-border"}`}><input type="checkbox" value={crop} checked={draft.crops.includes(crop)} onChange={e => setDraft({ ...draft, crops: e.target.checked ? [...draft.crops, crop] : draft.crops.filter(item => item !== crop) })} className="accent-[hsl(var(--primary))]" />{crop}</label>)}</div></fieldset>
         </section>
         <section className="rounded-xl border bg-card p-5 md:p-7"><h2 className="text-lg font-bold">Workspace preferences</h2><div className="mt-5 grid gap-5 sm:grid-cols-2">
-          <label className="text-sm font-semibold">Preferred language<select data-testid="select-profile-language" value={draftLocale} onChange={e => setDraftLocale(e.target.value as LocaleKey)} className={fieldClass}>{Object.entries(languageNames).map(([key, name]) => <option key={key} value={key} translate="no">{name}</option>)}</select></label>
-          <label className="text-sm font-semibold">Preferred workspace<select data-testid="select-profile-workspace" value={draft.workspace} onChange={e => setDraft({ ...draft, workspace: e.target.value as "farmer" | "insights" })} className={fieldClass}><option value="farmer">Farmer fieldbook</option><option value="insights">Regional insights</option></select></label>
+          <label className="text-sm font-semibold">Preferred language<FormSelect data-testid="select-profile-language" value={draftLocale} onChange={e => setDraftLocale(e.target.value as LocaleKey)} className={fieldClass}>{Object.entries(languageNames).map(([key, name]) => <option key={key} value={key} translate="no">{name}</option>)}</FormSelect></label>
+          <label className="text-sm font-semibold">Preferred workspace<FormSelect data-testid="select-profile-workspace" value={draft.workspace} onChange={e => setDraft({ ...draft, workspace: e.target.value as "farmer" | "insights" })} className={fieldClass}><option value="farmer">Farmer fieldbook</option><option value="insights">Regional insights</option></FormSelect></label>
         </div></section>
         <section className="rounded-xl border bg-card p-5 md:p-7"><h2 className="text-lg font-bold">Notifications</h2><label className="mt-4 flex cursor-pointer items-start justify-between gap-5"><span><span className="text-sm font-semibold">In-app scan activity</span><span className="mt-1 block text-sm text-muted-foreground">Show saved scans and unread activity in the bell panel.</span></span><input data-testid="checkbox-profile-notifications" type="checkbox" checked={draft.notifications} onChange={e => setDraft({ ...draft, notifications: e.target.checked })} className="mt-1 h-5 w-5 shrink-0 accent-[hsl(var(--primary))]" /></label><p className="mt-4 text-xs text-muted-foreground">This controls in-app activity only. No email, SMS, or device push notifications are sent.</p></section>
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border bg-card p-5">
