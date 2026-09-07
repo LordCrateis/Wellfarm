@@ -1,3 +1,4 @@
+import { AccountSettings } from "@/components/AccountSettings";
 import { FormSelect } from "@/components/FormSelect";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
@@ -49,13 +50,13 @@ export function ProfilePage({ locale, setLocale }: { locale: LocaleKey; setLocal
           {photoError && <p role="alert" className="mt-2 text-sm text-destructive">{photoError}</p>}
           <h2 className="mt-5 break-words text-xl font-bold">{profile.name ? <span translate="no">{profile.name}</span> : "Your profile"}</h2>
           {profile.farm && <p className="mt-1 break-words text-sm text-muted-foreground" translate="no">{profile.farm}</p>}
-          <span className="mt-4 inline-block rounded-full border px-3 py-1 text-xs text-muted-foreground">Saved in this browser</span>
+          <span className="mt-4 inline-block rounded-full border px-3 py-1 text-xs text-muted-foreground">Saved to your account</span>
           <div className="mt-5 flex flex-wrap gap-2">{profile.crops.map(crop => <span key={crop} className="rounded-full bg-secondary/60 px-3 py-1 text-xs text-primary">{crop}</span>)}</div>
           <Link href="/farmer/history" className="mt-6 flex min-h-11 items-center gap-2 border-t pt-4 text-sm font-bold text-primary"><Leaf size={16} />View scan history</Link>
         </section>
-        <section className="rounded-xl border bg-secondary/25 p-5 text-sm leading-6"><ShieldCheck size={22} className="mb-3 text-primary" /><h2 className="font-semibold">Your profile stays here</h2><p className="mt-2 text-muted-foreground">These preferences are stored in this browser. They are not a signed-in account and do not sync across devices. Clearing browser data removes them.</p><Link href="/transparency" className="mt-3 inline-flex font-bold text-primary">Privacy and transparency</Link></section>
+        <section className="rounded-xl border bg-secondary/25 p-5 text-sm leading-6"><ShieldCheck size={22} className="mb-3 text-primary" /><h2 className="font-semibold">Your account profile</h2><p className="mt-2 text-muted-foreground">Your profile and photo are stored with your account on this Wellfarm installation.</p><Link href="/transparency" className="mt-3 inline-flex font-bold text-primary">Privacy and transparency</Link></section>
       </aside>
-      <form onSubmit={event => { event.preventDefault(); if (!saveProfile(draft)) { setFeedback("error"); return; } setLocale(draftLocale); setDraft({ ...draft, name: draft.name.trim(), farm: draft.farm.trim() }); setFeedback("saved"); }} onChange={() => setFeedback(null)} className="min-w-0 space-y-6">
+      <form onSubmit={async event => { event.preventDefault(); if (!await saveProfile(draft)) { setFeedback("error"); return; } setLocale(draftLocale); setDraft({ ...draft, name: draft.name.trim(), farm: draft.farm.trim() }); setFeedback("saved"); }} onChange={() => setFeedback(null)} className="min-w-0 space-y-6">
         <section className="rounded-xl border bg-card p-5 md:p-7"><h2 className="text-lg font-bold">About you and your farm</h2><p className="mt-1 text-sm text-muted-foreground">Only add the details you want to use in your workspace.</p>
           <div className="mt-5 grid gap-5 sm:grid-cols-2">
             <label className="text-sm font-semibold">Display name<input data-testid="input-profile-name" autoComplete="name" maxLength={80} value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} className={fieldClass} /></label>
@@ -74,5 +75,6 @@ export function ProfilePage({ locale, setLocale }: { locale: LocaleKey; setLocal
         </div>
       </form>
     </div>
+    <AccountSettings />
   </AppShell></LocalizedContent>;
 }
