@@ -8,7 +8,6 @@ import {
 } from "@workspace/api-client-react";
 import { weather } from "@/data/mock";
 import {
-  createPreviewAnalysis,
   type ScanAnalysisResult,
 } from "@/services/scan-analysis";
 
@@ -153,8 +152,9 @@ export const sampleLocation: BrowserLocation = {
 };
 
 export const analyzeCropScan = async (
-  crop: CreateScanInput["crop"],
+  scanId: string,
 ): Promise<ScanAnalysisResult> => {
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  return createPreviewAnalysis(crop);
+  const response = await fetch(`/api/scans/${encodeURIComponent(scanId)}/analysis`, { method: "POST" });
+  if (!response.ok) throw new Error("Your scan was saved, but analysis failed. Check the model service and retry.");
+  return response.json();
 };
