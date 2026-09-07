@@ -1360,6 +1360,22 @@ export function FarmerHistory({
   const [selectedScan, setSelectedScan] = useState<Scan | null>(null);
   const [savedAnalysis, setSavedAnalysis] = useState<ScanAnalysisResult | null>(null);
   const [reportState, setReportState] = useState("loading");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const deleteScans = async (scanIds: string[]) => {
+    if (!window.confirm(`Permanently delete ${scanIds.length} scan(s), including photos and model reports? This cannot be undone.`)) return;
+    setDeleting(true); setDeleteError("");
+    try {
+      for (const scanId of scanIds) {
+        const response = await fetch(`/api/scans/${encodeURIComponent(scanId)}`, { method: "DELETE" });
+        if (!response.ok) throw new Error((await response.json()).error?.message ?? "Deletion failed.");
+        setRecords(current => current.filter(scan => scan.id !== scanId));
+        window.dispatchEvent(new Event("wellfarm:scans-changed"));
+      }
+      if (id) window.location.assign("/farmer/history");
+    } catch (error) { setDeleteError(error instanceof Error ? error.message : "Deletion failed. Please retry."); }
+    finally { setDeleting(false); }
+  };
   const [locationLabel, setLocationLabel] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -1431,6 +1447,9 @@ export function FarmerHistory({
             Back to history
           </Button>
         </PageHeader>
+
+        {selectedScan && <button disabled={deleting} onClick={() => deleteScans([selectedScan.id])} className="mb-5 rounded-lg border border-red-700 px-4 py-2 text-sm text-red-800 disabled:opacity-50">{deleting ? "Deleting…" : "Delete scan"}</button>}
+        {deleteError && <p role="alert" className="mb-4 text-red-800">{deleteError}</p>}
 
         {loading && (
           <Box>
@@ -1590,6 +1609,8 @@ export function FarmerHistory({
           New scan
         </Button>
       </PageHeader>
+      {records.length > 0 && <button disabled={deleting} onClick={() => deleteScans(records.map(scan => scan.id))} className="mb-5 rounded-lg border border-red-700 px-4 py-2 text-sm text-red-800 disabled:opacity-50">{deleting ? "Deleting…" : "Delete listed scans"}</button>}
+      {deleteError && <p role="alert" className="mb-4 text-red-800">{deleteError}</p>}
       <Box>
         <div className="mb-5 flex items-center justify-between gap-3">
           <div>
@@ -1668,6 +1689,7 @@ export function FarmerHistory({
                       >
                         Open <ArrowUpRight size={14} className="inline" />
                       </Link>
+                      <button disabled={deleting} onClick={() => deleteScans([scan.id])} className="ml-4 text-sm text-red-800 disabled:opacity-50">Delete</button>
                     </td>
                   </tr>
                 ))}
