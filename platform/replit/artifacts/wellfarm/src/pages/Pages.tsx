@@ -224,6 +224,30 @@ export function PublicHome({
   setLocale: (v: LocaleKey) => void;
 }) {
   const t = locales.en;
+  const [homeScans, setHomeScans] = useState<Scan[]>([]);
+  const [homeReports, setHomeReports] = useState<Record<string, ScanAnalysisResult>>({});
+  const [homeState, setHomeState] = useState("loading");
+  useEffect(() => {
+    let active = true;
+    const refresh = async () => {
+      try {
+        const scans = await listScanRecords();
+        const reports = await Promise.all(scans.filter(scan => scan.status === "completed").map(async scan => {
+          const response = await fetch(`/api/scans/${encodeURIComponent(scan.id)}/analysis`);
+          return response.ok ? [scan.id, await response.json()] as const : null;
+        }));
+        if (active) {
+          setHomeScans(scans);
+          setHomeReports(Object.fromEntries(reports.filter(report => report !== null)));
+          setHomeState("ready");
+        }
+      } catch { if (active) setHomeState("error"); }
+    };
+    void refresh();
+    window.addEventListener("focus", refresh);
+    window.addEventListener("wellfarm:scans-changed", refresh);
+    return () => { active = false; window.removeEventListener("focus", refresh); window.removeEventListener("wellfarm:scans-changed", refresh); };
+  }, []);
   return <LocalizedContent>{(
     <div className="wf-noise min-h-[100dvh]">
       <PublicNav locale={locale} setLocale={setLocale} />
@@ -266,38 +290,37 @@ export function PublicHome({
           <div className="flex items-center justify-between border-b border-[hsl(var(--border))] px-3 pb-3">
             <div>
               <div className="font-mono text-[9px] uppercase tracking-[.14em] text-[hsl(var(--muted-foreground))]">
-                Regional insight preview
+                Your saved fieldbook
               </div>
-              <div className="mt-1 text-sm font-bold">India signal snapshot</div>
+              <div className="mt-1 text-sm font-bold">Your crop scans</div>
             </div>
-            <Provenance kind="sample" />
+            <Provenance kind="local" />
           </div>
           <div className="mt-3">
             <WellfarmMap
-              ariaLabel="Preview map of sample regional crop-health signals in India"
+              ariaLabel="Approximate locations of your saved crop scans"
               className="h-[310px] sm:h-[340px]"
-              maxFitZoom={5}
-              showLegend
-              points={districtSummaries.slice(0, 4).map((district) => ({
-                latitude: district.latitude,
-                longitude: district.longitude,
-                label: `${district.district}, ${district.state}`,
-                detail: `${district.reports} sample reports · ${district.severity}`,
-                severity: district.severity,
+              maxFitZoom={10}
+              points={homeScans.map((scan) => ({
+                latitude: Math.round(scan.latitude * 100) / 100,
+                longitude: Math.round(scan.longitude * 100) / 100,
+                label: `${scan.crop} · ${formatScanDate(scan.createdAt, locale)}`,
+                detail: homeReports[scan.id]?.candidates[0]?.condition ?? "Saved scan",
+                severity: homeReports[scan.id]?.severity,
               }))}
             />
             <div className="grid gap-2 border-x border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] p-3 sm:grid-cols-3">
               <div>
                 <div className="text-[10px] font-bold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">
-                  Highest growth
+                  Saved scans
                 </div>
-                <div className="mt-1 text-sm font-extrabold">Cuttack · +31%</div>
+                <div className="mt-1 text-sm font-extrabold">{homeScans.length}</div>
               </div>
               <div>
                 <div className="text-[10px] font-bold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">
-                  High severity
+                  Completed reports
                 </div>
-                <div className="mt-1 text-sm font-extrabold">2 districts</div>
+                <div className="mt-1 text-sm font-extrabold">{Object.keys(homeReports).length}</div>
               </div>
               <div>
                 <div className="text-[10px] font-bold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">
@@ -305,6 +328,18 @@ export function PublicHome({
                 </div>
                 <div className="mt-1 text-sm font-extrabold">OpenStreetMap</div>
               </div>
+            </div>
+            <div className="border border-t-0 border-[hsl(var(--border))] p-3" data-testid="home-saved-reports">
+              {homeState === "loading" && <p>Loading saved scans…</p>}
+              {homeState === "error" && <p>Saved scans could not be loaded. Check that Wellfarm is running.</p>}
+              {homeState === "ready" && homeScans.length === 0 && <p>No saved scans yet.</p>}
+              {homeScans.slice(0, 3).map(scan => (
+                <Link key={scan.id} href={`/farmer/history/${scan.id}`} className="flex items-center gap-3 border-b border-[hsl(var(--border))] py-3 last:border-0">
+                  {scan.imagePath && <img src={scan.imagePath} alt={`${scan.crop} scan`} className="h-12 w-12 rounded object-cover" />}
+                  <div><div className="text-sm font-bold">{scan.crop} · {homeReports[scan.id]?.candidates[0]?.condition ?? "Saved scan"}</div><div className="text-xs">{formatScanDate(scan.createdAt, locale)}</div></div>
+                  <ArrowUpRight size={16} className="ml-auto" />
+                </Link>
+              ))}
             </div>
           </div>
         </div>
@@ -1324,6 +1359,7 @@ export function FarmerHistory({
   const [records, setRecords] = useState<Scan[]>([]);
   const [selectedScan, setSelectedScan] = useState<Scan | null>(null);
   const [savedAnalysis, setSavedAnalysis] = useState<ScanAnalysisResult | null>(null);
+  const [reportState, setReportState] = useState("loading");
   const [locationLabel, setLocationLabel] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -1334,10 +1370,15 @@ export function FarmerHistory({
     setLoadError(false);
     setSelectedScan(null);
     setSavedAnalysis(null);
+    setReportState("loading");
     if (id) fetch(`/api/scans/${encodeURIComponent(id)}/analysis`)
-      .then(response => response.ok ? response.json() : null)
-      .then(result => { if (active) setSavedAnalysis(result); })
-      .catch(() => { if (active) setSavedAnalysis(null); });
+      .then(response => {
+        if (response.status === 404) return null;
+        if (!response.ok) throw new Error("Report unavailable");
+        return response.json();
+      })
+      .then(result => { if (active) { setSavedAnalysis(result); setReportState(result ? "ready" : "missing"); } })
+      .catch(() => { if (active) setReportState("error"); });
 
     const request = id ? getScanRecord(id) : listScanRecords();
     request
@@ -1517,22 +1558,20 @@ export function FarmerHistory({
                 )}
               </Box>
 
-              <Box className="bg-[hsl(39_77%_66%/_.12)]">
+              {!savedAnalysis && <Box className="bg-[hsl(39_77%_66%/_.12)]">
                 <div className="flex gap-3">
                   <Info
                     className="mt-0.5 shrink-0 text-[hsl(26_44%_35%)]"
                     size={19}
                   />
                   <div>
-                    <h3 className="font-bold">Diagnosis not stored yet</h3>
+                    <h3 className="font-bold">{reportState === "loading" ? "Loading saved report…" : reportState === "error" ? "Report could not be loaded" : "No analysis saved for this photo"}</h3>
                     <p className="mt-1 text-sm leading-6 text-[hsl(var(--muted-foreground))]">
-                      This is the real farmer submission. Disease-model results
-                      will appear here after the free inference service is
-                      connected.
+                      {reportState === "error" ? "Your photo is saved. The report request failed; reload this page to retry." : reportState === "missing" ? "Your photo and crop details are saved, but analysis has not completed for this photo." : "Retrieving the model result for this scan."}
                     </p>
                   </div>
                 </div>
-              </Box>
+              </Box>}
             </div>
           </div>
         )}
