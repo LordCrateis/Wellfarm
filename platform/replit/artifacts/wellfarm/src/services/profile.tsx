@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import { crops } from "@/data/mock";
 
 export interface Profile {
+  avatar?: string;
   name: string;
   farm: string;
   crops: string[];
@@ -15,6 +16,7 @@ export const emptyProfile: Profile = { name: "", farm: "", crops: [], workspace:
 export function normalizeProfile(value: unknown): Profile {
   const data = value && typeof value === "object" ? value as Partial<Profile> : {};
   return {
+    ...(typeof data.avatar === "string" && data.avatar.length < 400000 && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(data.avatar) ? { avatar: data.avatar } : {}),
     name: typeof data.name === "string" ? data.name.trim().slice(0, 80) : "",
     farm: typeof data.farm === "string" ? data.farm.trim().slice(0, 100) : "",
     crops: Array.isArray(data.crops) ? [...new Set(data.crops.filter(crop => crops.includes(crop as typeof crops[number])))].slice(0, crops.length) : [],
