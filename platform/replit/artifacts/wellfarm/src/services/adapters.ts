@@ -6,7 +6,6 @@ import {
   type CreateScanInput,
   type Scan,
 } from "@workspace/api-client-react";
-import { weather } from "@/data/mock";
 import {
   type ScanAnalysisResult,
 } from "@/services/scan-analysis";
@@ -19,12 +18,11 @@ export interface DisplayWeather {
   wind: string;
   source: string;
   updated: string;
-  freshness: "live" | "cached" | "sample";
+  freshness: "live" | "cached" | "unavailable";
 }
 
-const sampleWeather: DisplayWeather = {
-  ...weather,
-  freshness: "sample",
+export const unavailableWeather: DisplayWeather = {
+  location: "Location unavailable", temperature: "—", humidity: "—", rain: "—", wind: "—", source: "Weather unavailable", updated: "", freshness: "unavailable",
 };
 
 export const weatherService = {
@@ -48,7 +46,7 @@ export const weatherService = {
         freshness: current.freshness,
       };
     } catch {
-      return sampleWeather;
+      return unavailableWeather;
     }
   },
 };
@@ -145,11 +143,6 @@ export const requestLocation = (): Promise<BrowserLocation> =>
     );
   });
 
-export const sampleLocation: BrowserLocation = {
-  latitude: 20.4625,
-  longitude: 85.883,
-  label: "Cuttack district · sample location",
-};
 
 export const analyzeCropScan = async (
   scanId: string,
