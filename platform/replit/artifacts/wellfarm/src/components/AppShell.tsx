@@ -1,3 +1,4 @@
+import { FormSelect } from "@/components/FormSelect";
 import { LocalizedContent } from "@/i18n/TranslationProvider";
 import { ChevronDown, Globe2, Menu, X } from "lucide-react";
 import { useState } from "react";
@@ -13,7 +14,7 @@ export function LanguageSelect({ locale, setLocale }: { locale: LocaleKey; setLo
   return <LocalizedContent>{(
     <label className="relative inline-flex items-center gap-1 text-xs font-semibold text-[hsl(var(--muted-foreground))]">
       <Globe2 size={15} />
-      <select
+      <FormSelect
         aria-label="Select language"
         data-testid="select-language"
         value={locale}
@@ -21,7 +22,7 @@ export function LanguageSelect({ locale, setLocale }: { locale: LocaleKey; setLo
         className="cursor-pointer appearance-none bg-transparent pr-4 text-[hsl(var(--foreground))] outline-none"
       >
         {Object.entries(languageNames).map(([key, name]) => <option key={key} value={key} translate="no">{name}</option>)}
-      </select>
+      </FormSelect>
       <ChevronDown size={12} className="pointer-events-none absolute right-0" />
     </label>
   )}</LocalizedContent>;
@@ -73,7 +74,7 @@ export function AppShell({ children, role, locale, setLocale }: { children: Reac
         <div className="mt-9 border-b border-[hsl(var(--sidebar-border))] pb-5">
           <div className="font-mono text-[10px] uppercase tracking-[.16em] text-[hsl(var(--sidebar-primary))]">Current workspace</div>
           <div className="mt-2 text-lg font-bold">{isFarmer ? "Farmer fieldbook" : "Regional insights"}</div>
-          <div className="mt-1 text-xs text-[hsl(var(--sidebar-foreground)/_.62)]">{isFarmer ? "Personal crop health" : "Privacy-reduced sample patterns"}</div>
+          <div className="mt-1 text-xs text-[hsl(var(--sidebar-foreground)/_.62)]">{isFarmer ? "Personal crop health" : "Saved scan patterns"}</div>
         </div>
         <nav className="mt-6 space-y-1">
           {items.map((item) => <Link key={item.href} href={item.href} onClick={() => setMobile(false)} data-testid={`link-sidebar-${item.label.toLowerCase().replaceAll(" ", "-")}`} className={`flex items-center gap-3 rounded-lg px-3 py-3 text-sm ${location === item.href ? "bg-[hsl(var(--sidebar-primary))] font-bold text-[hsl(var(--sidebar-primary-foreground))]" : "text-[hsl(var(--sidebar-foreground)/_.72)] hover:bg-[hsl(var(--sidebar-accent))]"}`}><span className="grid h-6 w-6 place-items-center rounded border border-current/30 font-mono text-[9px]">{item.icon}</span>{item.label}</Link>)}
