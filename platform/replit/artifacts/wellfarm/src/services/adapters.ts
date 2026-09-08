@@ -64,6 +64,30 @@ export async function listScanRecords(): Promise<Scan[]> {
   return records as Scan[];
 }
 
+export interface RegionalScanSummary {
+  crop: string;
+  state: string;
+  district: string;
+  latitude: number;
+  longitude: number;
+  indication: string | null;
+  severity: "low" | "moderate" | "high" | null;
+  status: "analyzed" | "awaiting-analysis";
+  createdAt: string;
+}
+
+export async function listRegionalScanRecords(): Promise<RegionalScanSummary[]> {
+  const response = await fetch("/api/scans/regional", {
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error("regional scans unavailable");
+
+  const records: unknown = await response.json();
+  if (!Array.isArray(records)) throw new Error("invalid regional scans");
+  return records as RegionalScanSummary[];
+}
+
 export function getScanRecord(scanId: string): Promise<Scan> {
   return getScan(scanId);
 }
