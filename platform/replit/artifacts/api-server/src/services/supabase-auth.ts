@@ -17,8 +17,14 @@ export function syncSupabaseUser(user: User) {
   if (!user.email || !user.email_confirmed_at) throw new Error("Verify your email before signing in.");
   const email = user.email.toLowerCase();
   const existing = sqlite.prepare("SELECT id,supabase_id FROM accounts WHERE email = ?").get(email) as {id:string;supabase_id:string|null}|undefined;
-  if (existing && existing.supabase_id !== user.id) throw new Error("This email has a legacy local account. Account migration is required before Supabase sign-in.");
   const role = email === process.env.WELLFARM_ADMIN_EMAIL?.trim().toLowerCase() ? "admin" : "farmer";
+  if (existing) {
+    if (existing.supabase_id && existing.supabase_id !== user.id) throw new Error("This email is linked to a different identity.");
+    // Supabase has verified control of the same email, so preserve the local
+    // profile and scan ownership while attaching the trusted identity.
+    sqlite.prepare("UPDATE accounts SET supabase_id = ?, role = ? WHERE id = ?").run(user.id,role,existing.id);
+    return sqlite.prepare("SELECT * FROM accounts WHERE id = ?").get(existing.id);
+  }
   sqlite.prepare("INSERT INTO accounts (id,email,password_hash,profile,supabase_id,role) VALUES (?,?,'supabase','{}',?,?) ON CONFLICT(id) DO UPDATE SET email=excluded.email").run(user.id,email,user.id,role);
   return sqlite.prepare("SELECT * FROM accounts WHERE id = ?").get(user.id);
 }
