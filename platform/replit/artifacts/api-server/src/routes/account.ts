@@ -7,6 +7,7 @@ import { isVisionBusy } from "../services/vision";
 import { supabase, supabaseAdmin, syncSupabaseUser, usesSupabase } from "../services/supabase-auth";
 import type { Session } from "@supabase/supabase-js";
 import { isSharedAuthProject } from "../services/auth-project-policy";
+import { TurnstileConfigurationError, verifyTurnstileToken } from "../services/turnstile";
 
 const derive = promisify(scrypt);
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
@@ -61,12 +62,12 @@ router.post("/auth/register", limit, async (req, res) => {
   if (usesSupabase()) {
     try {
       if (req.body.confirmPassword !== password) {res.status(400).json({error:{message:"Passwords must match."}});return;}
-      if (!req.body.captchaToken || !process.env.TURNSTILE_SITE_KEY) {res.status(400).json({error:{message:"Complete CAPTCHA verification. Contact the administrator if it is unavailable."}});return;}
-      const {data,error} = await supabase(req,res).auth.signUp({email,password,options:{captchaToken:req.body.captchaToken}});
+      if (!await verifyTurnstileToken(req.body.captchaToken, req.ip)) {res.status(400).json({error:{message:"CAPTCHA verification failed. Please try again."}});return;}
+      const {data,error} = await supabase(req,res).auth.signUp({email,password});
       if(error) {res.status(400).json({error:{message:error.message}});return;}
       if(data.session) {res.status(503).json({error:{message:"Email confirmation must be enabled in Supabase before registration can proceed."}});return;}
       res.json({verificationRequired:true}); return;
-    } catch {res.status(503).json({error:{message:"Supabase registration is not configured."}});return;}
+    } catch(error) {res.status(503).json({error:{message:error instanceof TurnstileConfigurationError ? "CAPTCHA is not configured correctly." : "Supabase registration is not configured."}});return;}
   }
   const salt = randomBytes(16).toString("hex");
   const derived = await derive(password, salt, 64) as Buffer;
@@ -81,11 +82,11 @@ router.post("/auth/login", limit, async (req, res) => {
   if (typeof password !== "string" || password.length > 128) { res.status(400).json({error: {message: "Invalid credentials."}}); return; }
   if (usesSupabase()) {
     try {
-      if (!req.body.captchaToken || !process.env.TURNSTILE_SITE_KEY) {res.status(400).json({error:{message:"Complete CAPTCHA verification."}});return;}
-      const {data,error} = await supabase(req,res).auth.signInWithPassword({email,password,options:{captchaToken:req.body.captchaToken}});
+      if (!await verifyTurnstileToken(req.body.captchaToken, req.ip)) {res.status(400).json({error:{message:"CAPTCHA verification failed. Please try again."}});return;}
+      const {data,error} = await supabase(req,res).auth.signInWithPassword({email,password});
       if(error || !data.session) {res.status(401).json({error:{message:"Email or password is incorrect, or verification is incomplete."}});return;}
       startSession(res,syncSupabaseUser(data.user) as Account,data.session);return;
-    } catch(error) {res.status(503).json({error:{message:error instanceof Error ? error.message : "Sign-in unavailable."}});return;}
+    } catch(error) {res.status(503).json({error:{message:error instanceof TurnstileConfigurationError ? "CAPTCHA is not configured correctly." : "Sign-in unavailable."}});return;}
   }
   const account = sqlite.prepare("SELECT * FROM accounts WHERE email = ?").get(email) as Account | undefined;
   const matches = await verify(password, account?.password_hash ?? `${"0".repeat(32)}:${"0".repeat(128)}`);
