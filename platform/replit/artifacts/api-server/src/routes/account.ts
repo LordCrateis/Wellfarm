@@ -6,6 +6,7 @@ import { removeStoredImage } from "../lib/uploads";
 import { isVisionBusy } from "../services/vision";
 import { supabase, supabaseAdmin, syncSupabaseUser, usesSupabase } from "../services/supabase-auth";
 import type { Session } from "@supabase/supabase-js";
+import { isSharedAuthProject } from "../services/auth-project-policy";
 
 const derive = promisify(scrypt);
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
@@ -92,7 +93,7 @@ router.post("/auth/login", limit, async (req, res) => {
   startSession(res, account);
 });
 router.post("/auth/logout", async (req, res) => {
-  if (usesSupabase()) {
+  if (usesSupabase() && !isSharedAuthProject()) {
     const session = sqlite.prepare("SELECT access_token FROM sessions WHERE token_hash = ?").get(hash(token(req))) as {access_token:string}|undefined;
     // Always clear the application's session, even if remote revocation is unavailable.
     if(session?.access_token && process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -131,10 +132,10 @@ router.delete("/account", requireAccount, limit, async (req, res) => {
   const account = res.locals.account as Account;
   if (usesSupabase()) {
     if(req.body.confirmEmail !== account.email) {res.status(403).json({error:{message:"Enter your account email to confirm deletion."}});return;}
-    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {res.status(503).json({error:{message:"Supabase account deletion has not been configured."}});return;}
+    if (!isSharedAuthProject() && !process.env.SUPABASE_SERVICE_ROLE_KEY) {res.status(503).json({error:{message:"Supabase account deletion has not been configured."}});return;}
   } else if (typeof req.body.password !== "string" || req.body.password.length > 128 || !await verify(req.body.password, account.password_hash)) { res.status(403).json({error: {message: "Enter your current password to delete your account."}}); return; }
   if (isVisionBusy()) { res.status(409).json({error: {message: "Wait for analysis to finish before deleting your account."}}); return; }
-  if (usesSupabase() && account.supabase_id) {
+  if (usesSupabase() && account.supabase_id && !isSharedAuthProject()) {
     const session = sqlite.prepare("SELECT access_token FROM sessions WHERE token_hash = ?").get(hash(token(req))) as {access_token:string};
     const revoked = await supabaseAdmin().auth.admin.signOut(session.access_token,"global");
     if (revoked.error) {res.status(503).json({error:{message:"Session revocation failed. Please retry account deletion."}});return;}
@@ -149,7 +150,7 @@ router.delete("/account", requireAccount, limit, async (req, res) => {
   })();
   res.clearCookie("wellfarm_session", cookieOptions).sendStatus(204);
 });
-router.get("/auth/config", (_req,res) => res.json({provider:usesSupabase()?"supabase":"local",captchaSiteKey:process.env.TURNSTILE_SITE_KEY ?? null,googleEnabled:usesSupabase() && process.env.GOOGLE_AUTH_ENABLED === "true"}));
+router.get("/auth/config", (_req,res) => res.json({provider:usesSupabase()?"supabase":"local",sharedAuthProject:usesSupabase() && isSharedAuthProject(),captchaSiteKey:process.env.TURNSTILE_SITE_KEY ?? null,googleEnabled:usesSupabase() && process.env.GOOGLE_AUTH_ENABLED === "true"}));
 router.post("/auth/verify",limit,async(req,res) => {
   if(!usesSupabase()) {res.sendStatus(503);return;}
   if(typeof req.body.email !== "string" || typeof req.body.token !== "string" || !/^\d{6,10}$/.test(req.body.token)) {res.status(400).json({error:{message:"Enter the verification code from your email."}});return;}
