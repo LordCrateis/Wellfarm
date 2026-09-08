@@ -2,6 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import { crops } from "@/data/mock";
 
 export interface Profile {
+  state?: string;
+  district?: string;
   avatar?: string;
   name: string;
   farm: string;
@@ -16,6 +18,8 @@ export const emptyProfile: Profile = { name: "", farm: "", crops: [], workspace:
 export function normalizeProfile(value: unknown): Profile {
   const data = value && typeof value === "object" ? value as Partial<Profile> : {};
   return {
+    ...(typeof data.state === "string" ? {state:data.state.slice(0,100)} : {}),
+    ...(typeof data.district === "string" ? {district:data.district.slice(0,100)} : {}),
     ...(typeof data.avatar === "string" && data.avatar.length < 400000 && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(data.avatar) ? { avatar: data.avatar } : {}),
     name: typeof data.name === "string" ? data.name.trim().slice(0, 80) : "",
     farm: typeof data.farm === "string" ? data.farm.trim().slice(0, 100) : "",
@@ -31,7 +35,7 @@ export function profileInitials(name: string) {
 interface AccountState {
   profile: Profile;
   readIds: string[];
-  account: {id: string; email: string} | null;
+  account: {id: string; email: string; role: string} | null;
   loading: boolean;
   saveProfile: (value: Profile) => Promise<boolean>;
   markRead: (ids: string[]) => boolean;
@@ -49,7 +53,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     fetch("/api/auth/me").then(async response => {
       if (!response.ok) return;
       const data = await response.json();
-      if (active) { setAccount({id: data.id, email: data.email}); setProfile(normalizeProfile(data.profile)); }
+      if (active) { setAccount({id: data.id, email: data.email,role:data.role ?? "farmer"}); setProfile(normalizeProfile(data.profile)); }
     }).finally(() => { if (active) setLoading(false); }).catch(() => {});
     return () => { active = false; };
   }, []);
