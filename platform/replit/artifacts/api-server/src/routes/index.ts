@@ -5,11 +5,13 @@ import locationRouter from "./location";
 import scansRouter from "./scans";
 import weatherRouter from "./weather";
 import accountRouter, { requireAccount } from "./account";
+import adminRouter from "./admin";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(accountRouter);
+router.use(adminRouter);
 router.use("/advisory", requireAccount);
 router.use(advisoryRouter);
 router.use(locationRouter);
