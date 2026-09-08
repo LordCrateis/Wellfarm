@@ -90,6 +90,27 @@ const migrations = [
     `,
   },
   { id: "0004_supabase_sessions", sql: `ALTER TABLE sessions ADD COLUMN access_token TEXT; ALTER TABLE sessions ADD COLUMN refresh_token TEXT;` },
+  {
+    id: "0005_regional_scan_locations",
+    sql: `
+      ALTER TABLE scans ADD COLUMN location_state TEXT NOT NULL DEFAULT '';
+      ALTER TABLE scans ADD COLUMN location_district TEXT NOT NULL DEFAULT '';
+      UPDATE scans
+      SET location_state = COALESCE((
+        SELECT accounts.state
+        FROM scan_owners
+        JOIN accounts ON accounts.id = scan_owners.account_id
+        WHERE scan_owners.scan_id = scans.id
+      ), ''),
+      location_district = COALESCE((
+        SELECT accounts.district
+        FROM scan_owners
+        JOIN accounts ON accounts.id = scan_owners.account_id
+        WHERE scan_owners.scan_id = scans.id
+      ), '');
+      CREATE INDEX scans_regional_location_idx ON scans(location_state, location_district, crop);
+    `,
+  },
 ] as const;
 
 export function runMigrations(sqlite: Database.Database): void {

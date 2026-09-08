@@ -15,6 +15,8 @@ export const scans = sqliteTable(
     notes: text("notes"),
     latitude: real("latitude").notNull(),
     longitude: real("longitude").notNull(),
+    locationState: text("location_state").notNull().default(""),
+    locationDistrict: text("location_district").notNull().default(""),
     imagePath: text("image_path"),
     status: text("status").notNull().default("pending"),
     createdAt: timestamp("created_at").notNull(),
@@ -23,6 +25,11 @@ export const scans = sqliteTable(
   (table) => [
     index("scans_created_at_idx").on(table.createdAt),
     index("scans_location_idx").on(table.latitude, table.longitude),
+    index("scans_regional_location_idx").on(
+      table.locationState,
+      table.locationDistrict,
+      table.crop,
+    ),
   ],
 );
 
