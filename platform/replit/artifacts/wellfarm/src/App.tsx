@@ -23,6 +23,7 @@ import { AccountProvider } from "@/services/profile";
 import { ProfilePage } from "@/pages/Profile";
 import { Login, AccountGate } from "@/pages/Login";
 import { AdminPage, MessagesPage } from "@/pages/Admin";
+import { Onboarding } from "@/pages/Onboarding";
 
 const queryClient = new QueryClient();
 
@@ -50,6 +51,7 @@ function Router() {
     <AccountProvider><TranslationProvider locale={locale}><RoutedErrorBoundary>
       <AccountGate><Switch>
         <Route path="/login"><Login /></Route>
+        <Route path="/onboarding"><Onboarding {...props} /></Route>
         <Route path="/admin"><AdminPage {...props} /></Route>
         <Route path="/messages"><MessagesPage {...props} /></Route>
         <Route path="/"><PublicHome {...props} /></Route>
