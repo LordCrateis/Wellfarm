@@ -9,7 +9,7 @@ import { profileInitials, useAccount } from "@/services/profile";
 import { listScanRecords } from "@/services/adapters";
 
 export function AccountControls() {
-  const { profile, readIds, markRead, logout } = useAccount();
+  const { profile, readIds, markRead, logout, account } = useAccount();
   const [logoutError, setLogoutError] = useState("");
   const { locale, t } = useTranslation();
   const [path, navigate] = useLocation();
@@ -62,6 +62,8 @@ export function AccountControls() {
         <DropdownMenuLabel><span className="block truncate" translate="no">{profile.name || t("Your profile")}</span><span className="mt-1 block text-xs font-normal text-muted-foreground">Account profile</span></DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={() => navigate("/profile")}><UserRound />Profile and preferences</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => navigate("/messages")}><ArrowRight />Messages</DropdownMenuItem>
+        {account?.role === "admin" && <DropdownMenuItem onSelect={() => navigate("/admin")}><Settings />Admin dashboard</DropdownMenuItem>}
         <DropdownMenuItem onSelect={() => navigate(profile.workspace === "farmer" ? "/farmer" : "/insights")}><ArrowRight />Open my workspace</DropdownMenuItem>
         <DropdownMenuItem onSelect={() => navigate("/farmer/history")}><Leaf />Scan history</DropdownMenuItem>
         <DropdownMenuItem onSelect={() => navigate("/workspaces")}><ArrowRight />Switch workspace</DropdownMenuItem>
