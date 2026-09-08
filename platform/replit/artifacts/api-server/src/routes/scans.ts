@@ -71,7 +71,7 @@ function validationError(
 }
 
 function findScan(scanId: string, accountId: string): Scan | undefined {
-  if (!sqlite.prepare("SELECT 1 FROM scan_owners WHERE scan_id = ? AND account_id = ?").get(scanId, accountId)) return undefined;
+  if (!sqlite.prepare("SELECT 1 FROM scan_owners WHERE scan_id = ? AND account_id = ? AND hidden_at IS NULL").get(scanId, accountId)) return undefined;
   return db.select().from(scans).where(eq(scans.id, scanId)).get();
 }
 
@@ -154,7 +154,7 @@ router.post("/scans", (req, res, next) => {
       .returning()
       .get();
 
-    sqlite.prepare("INSERT INTO scan_owners VALUES (?, ?)").run(scan.id, res.locals.account.id);
+    sqlite.prepare("INSERT INTO scan_owners (scan_id, account_id) VALUES (?, ?)").run(scan.id, res.locals.account.id);
     res.status(201).json(CreateScanResponse.parse(toResponse(scan)));
   } catch (error) {
     next(error);
@@ -166,7 +166,7 @@ router.get("/scans", (_req, res, next) => {
     const storedScans = db
       .select()
       .from(scans)
-      .where(sql`${scans.id} IN (SELECT scan_id FROM scan_owners WHERE account_id = ${res.locals.account.id})`)
+      .where(sql`${scans.id} IN (SELECT scan_id FROM scan_owners WHERE account_id = ${res.locals.account.id} AND hidden_at IS NULL)`)
       .orderBy(desc(scans.createdAt))
       .limit(100)
       .all();
@@ -317,8 +317,7 @@ router.delete("/scans/:scanId", requireExistingScan, (_req, res, next) => {
   }
   try {
     const scan = res.locals.scan as Scan;
-    if (scan.imagePath) removeStoredImage(scan.imagePath);
-    db.delete(scans).where(eq(scans.id, scan.id)).run();
+    sqlite.prepare("UPDATE scan_owners SET hidden_at = ? WHERE scan_id = ? AND account_id = ?").run(Date.now(), scan.id, res.locals.account.id);
     res.sendStatus(204);
   } catch (error) { next(error); }
 });
