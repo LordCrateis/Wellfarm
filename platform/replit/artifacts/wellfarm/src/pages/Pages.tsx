@@ -1355,7 +1355,7 @@ export function FarmerHistory({
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const deleteScans = async (scanIds: string[]) => {
-    if (!await confirmAction(`Permanently delete ${scanIds.length} scan(s), including photos and model reports? This cannot be undone.`)) return;
+    if (!await confirmAction(`Remove ${scanIds.length} scan(s) from your history? Administrators will retain access to these photos and reports. This does not permanently delete the records.`)) return;
     setDeleting(true); setDeleteError("");
     try {
       for (const scanId of scanIds) {
