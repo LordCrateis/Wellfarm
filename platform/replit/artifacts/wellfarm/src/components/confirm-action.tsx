@@ -15,7 +15,7 @@ export function confirmAction(description: string): Promise<boolean> {
     };
     root.render(<AlertDialog open onOpenChange={open => { if (!open) close(false); }}>
       <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete saved scans?</AlertDialogTitle><AlertDialogDescription>{description}</AlertDialogDescription></AlertDialogHeader>
-      <AlertDialogFooter><AlertDialogCancel onClick={() => close(false)}>Keep scans</AlertDialogCancel><AlertDialogAction className="bg-destructive text-destructive-foreground" onClick={() => close(true)}>Delete permanently</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+      <AlertDialogFooter><AlertDialogCancel onClick={() => close(false)}>Keep scans</AlertDialogCancel><AlertDialogAction className="bg-destructive text-destructive-foreground" onClick={() => close(true)}>Remove from my history</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
     </AlertDialog>);
   });
 }
