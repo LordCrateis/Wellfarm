@@ -17,6 +17,7 @@ import {
   openStoredImage,
   removeStoredImage,
 } from "../lib/uploads";
+import { getApproximateLocation } from "../services/location";
 
 const router: IRouter = Router();
 
@@ -122,7 +123,7 @@ const uploadOneImage: RequestHandler = (req, res, next) => {
   });
 };
 
-router.post("/scans", (req, res, next) => {
+router.post("/scans", async (req, res, next) => {
   const parsed = CreateScanBody.safeParse(req.body);
 
   if (!parsed.success) {
@@ -133,6 +134,18 @@ router.post("/scans", (req, res, next) => {
   try {
     const now = new Date();
     const input = parsed.data;
+    const accountLocation = sqlite
+      .prepare("SELECT state, district FROM accounts WHERE id = ?")
+      .get(res.locals.account.id) as { state: string; district: string } | undefined;
+    let locationState = accountLocation?.state ?? "";
+    let locationDistrict = accountLocation?.district ?? "";
+    try {
+      const detected = await getApproximateLocation(input.latitude, input.longitude);
+      locationState = detected.state ?? locationState;
+      locationDistrict = detected.district ?? locationDistrict;
+    } catch {
+      // A temporary place-name failure must not prevent the farmer saving a scan.
+    }
     const scan = db
       .insert(scans)
       .values({
@@ -146,6 +159,8 @@ router.post("/scans", (req, res, next) => {
         notes: input.notes ?? null,
         latitude: input.latitude,
         longitude: input.longitude,
+        locationState,
+        locationDistrict,
         imagePath: null,
         status: "pending",
         createdAt: now,
@@ -174,6 +189,70 @@ router.get("/scans", (_req, res, next) => {
     res.json(
       storedScans.map((scan) => CreateScanResponse.parse(toResponse(scan))),
     );
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/scans/regional", async (_req, res, next) => {
+  try {
+    const legacyScans = sqlite.prepare(`
+      SELECT scans.id, scans.latitude, scans.longitude
+      FROM scans
+      JOIN scan_owners ON scan_owners.scan_id = scans.id
+      WHERE scan_owners.hidden_at IS NULL
+        AND (scans.location_state = '' OR scans.location_district = '')
+      ORDER BY scans.created_at DESC
+      LIMIT 5
+    `).all() as Array<{ id: string; latitude: number; longitude: number }>;
+    for (const scan of legacyScans) {
+      try {
+        const location = await getApproximateLocation(scan.latitude, scan.longitude);
+        sqlite.prepare(`
+          UPDATE scans
+          SET location_state = ?, location_district = ?
+          WHERE id = ?
+        `).run(location.state ?? "", location.district ?? "", scan.id);
+      } catch {
+        // Leave unresolved legacy scans available under the fallback location labels.
+      }
+    }
+
+    const regionalScans = db
+      .select()
+      .from(scans)
+      .where(sql`${scans.id} IN (
+        SELECT scan_id FROM scan_owners WHERE hidden_at IS NULL
+      )`)
+      .orderBy(desc(scans.createdAt))
+      .limit(500)
+      .all();
+
+    const summaries = await Promise.all(regionalScans.map(async (scan) => {
+      let report: { candidates?: Array<{ condition?: string }>; severity?: string } | null = null;
+      if (scan.status === "completed") {
+        try {
+          report = await analyzeScan(scan, true);
+        } catch {
+          report = null;
+        }
+      }
+      const severity = report?.severity;
+      return {
+        crop: scan.crop,
+        state: scan.locationState || "Location unavailable",
+        district: scan.locationDistrict || "District unavailable",
+        latitude: Math.round(scan.latitude * 10) / 10,
+        longitude: Math.round(scan.longitude * 10) / 10,
+        indication: report?.candidates?.[0]?.condition ?? null,
+        severity: severity === "low" || severity === "moderate" || severity === "high" ? severity : null,
+        status: report ? "analyzed" : "awaiting-analysis",
+        createdAt: scan.createdAt,
+      };
+    }));
+
+    res.setHeader("Cache-Control", "private, no-store");
+    res.json(summaries);
   } catch (error) {
     next(error);
   }
