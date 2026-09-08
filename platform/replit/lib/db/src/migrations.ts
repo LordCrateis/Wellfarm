@@ -76,6 +76,20 @@ const migrations = [
       CREATE TABLE feedback (id TEXT PRIMARY KEY, account_id TEXT REFERENCES accounts(id) ON DELETE CASCADE, message TEXT NOT NULL, created_at INTEGER NOT NULL);
     `,
   },
+  {
+    id: "0003_admin_and_messages",
+    sql: `
+      ALTER TABLE accounts ADD COLUMN role TEXT NOT NULL DEFAULT 'farmer';
+      ALTER TABLE accounts ADD COLUMN state TEXT NOT NULL DEFAULT '';
+      ALTER TABLE accounts ADD COLUMN district TEXT NOT NULL DEFAULT '';
+      ALTER TABLE accounts ADD COLUMN supabase_id TEXT;
+      CREATE UNIQUE INDEX accounts_supabase_id ON accounts(supabase_id);
+      ALTER TABLE scan_owners ADD COLUMN hidden_at INTEGER;
+      CREATE TABLE messages (id TEXT PRIMARY KEY, account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE, sender_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE, body TEXT NOT NULL, created_at INTEGER NOT NULL);
+      CREATE INDEX messages_thread ON messages(account_id, created_at);
+    `,
+  },
+  { id: "0004_supabase_sessions", sql: `ALTER TABLE sessions ADD COLUMN access_token TEXT; ALTER TABLE sessions ADD COLUMN refresh_token TEXT;` },
 ] as const;
 
 export function runMigrations(sqlite: Database.Database): void {
