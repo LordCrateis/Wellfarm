@@ -59,6 +59,8 @@ export function ProfilePage({ locale, setLocale }: { locale: LocaleKey; setLocal
       <form onSubmit={async event => { event.preventDefault(); if (!await saveProfile(draft)) { setFeedback("error"); return; } setLocale(draftLocale); setDraft({ ...draft, name: draft.name.trim(), farm: draft.farm.trim() }); setFeedback("saved"); }} onChange={() => setFeedback(null)} className="min-w-0 space-y-6">
         <section className="rounded-xl border bg-card p-5 md:p-7"><h2 className="text-lg font-bold">About you and your farm</h2><p className="mt-1 text-sm text-muted-foreground">Only add the details you want to use in your workspace.</p>
           <div className="mt-5 grid gap-5 sm:grid-cols-2">
+            <label className="text-sm font-semibold">State<input maxLength={100} value={draft.state ?? ""} onChange={e => setDraft({...draft,state:e.target.value})} className={fieldClass} /></label>
+            <label className="text-sm font-semibold">District<input maxLength={100} value={draft.district ?? ""} onChange={e => setDraft({...draft,district:e.target.value})} className={fieldClass} /></label>
             <label className="text-sm font-semibold">Display name<input data-testid="input-profile-name" autoComplete="name" maxLength={80} value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} className={fieldClass} /></label>
             <label className="text-sm font-semibold">Farm name or label (optional)<input data-testid="input-profile-farm" maxLength={100} value={draft.farm} onChange={e => setDraft({ ...draft, farm: e.target.value })} className={fieldClass} /></label>
           </div>
