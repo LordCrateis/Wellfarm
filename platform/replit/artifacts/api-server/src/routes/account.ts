@@ -40,13 +40,13 @@ export const requireAccount: RequestHandler = async (req, res, next) => {
   }
   res.locals.account = account; next();
 };
-function startSession(res: Parameters<RequestHandler>[1], account: Account, session?: Session) {
+function startSession(res: Parameters<RequestHandler>[1], account: Account, session?: Session, extra: Record<string, unknown> = {}) {
   const value = randomBytes(32).toString("hex");
   sqlite.prepare("DELETE FROM sessions WHERE expires_at <= ?").run(Date.now());
   const lifetime = session ? Math.min(session.expires_in * 1000,3600000) : 7 * 86400000;
   sqlite.prepare("INSERT INTO sessions (token_hash,account_id,expires_at,access_token,refresh_token) VALUES (?, ?, ?, ?, ?)").run(hash(value), account.id, Date.now() + lifetime,session?.access_token ?? null,session?.refresh_token ?? null);
   res.cookie("wellfarm_session", value, {...cookieOptions, maxAge: lifetime});
-  res.json({id: account.id, email: account.email, role: account.role ?? "farmer", profile: {...JSON.parse(account.profile), state: account.state ?? "", district: account.district ?? ""}});
+  res.json({id: account.id, email: account.email, role: account.role ?? "farmer", profile: {...JSON.parse(account.profile), state: account.state ?? "", district: account.district ?? ""}, ...extra});
 }
 async function verify(password: string, stored: string) {
   const [salt, expected] = stored.split(":");
@@ -74,7 +74,7 @@ router.post("/auth/register", limit, async (req, res) => {
   const account: Account = {id: randomUUID(), email, password_hash: `${salt}:${derived.toString("hex")}`, profile: "{}"};
   try { sqlite.prepare("INSERT INTO accounts (id,email,password_hash,profile) VALUES (?, ?, ?, ?)").run(account.id, email, account.password_hash, account.profile); }
   catch { res.status(409).json({error: {message: "Could not create this account. Try logging in instead."}}); return; }
-  startSession(res, account);
+  startSession(res, account, undefined, {onboardingRequired:true});
 });
 router.post("/auth/login", limit, async (req, res) => {
   const email = typeof req.body.email === "string" ? req.body.email.trim().toLowerCase() : "";
@@ -111,7 +111,10 @@ router.get("/auth/me", requireAccount, (_req, res) => {
 router.put("/account/profile", requireAccount, (req, res) => {
   const input = req.body;
   const profile = {
+    firstName: typeof input.firstName === "string" ? input.firstName.trim().slice(0,50) : "",
+    lastName: typeof input.lastName === "string" ? input.lastName.trim().slice(0,50) : "",
     name: typeof input.name === "string" ? input.name.trim().slice(0,80) : "",
+    city: typeof input.city === "string" ? input.city.trim().slice(0,100) : "",
     farm: typeof input.farm === "string" ? input.farm.trim().slice(0,100) : "",
     crops: Array.isArray(input.crops) ? input.crops.filter((crop: unknown) => typeof crop === "string" && ["Rice","Wheat","Maize","Cotton","Sugarcane","Soybean","Tomato","Potato"].includes(crop)) : [],
     workspace: input.workspace === "insights" ? "insights" : "farmer",
@@ -155,8 +158,15 @@ router.get("/auth/config", (_req,res) => res.json({provider:usesSupabase()?"supa
 router.post("/auth/verify",limit,async(req,res) => {
   if(!usesSupabase()) {res.sendStatus(503);return;}
   if(typeof req.body.email !== "string" || typeof req.body.token !== "string" || !/^\d{6,10}$/.test(req.body.token)) {res.status(400).json({error:{message:"Enter the verification code from your email."}});return;}
-  try {const {data,error}=await supabase(req,res).auth.verifyOtp({email:req.body.email,token:req.body.token,type:"signup"}); if(error || !data.session || !data.user) {res.status(400).json({error:{message:"The code is invalid or expired."}});return;} startSession(res,syncSupabaseUser(data.user) as Account,data.session);}
+  try {const {data,error}=await supabase(req,res).auth.verifyOtp({email:req.body.email,token:req.body.token,type:"signup"}); if(error || !data.session || !data.user) {res.status(400).json({error:{message:"The code is invalid or expired."}});return;} startSession(res,syncSupabaseUser(data.user) as Account,data.session,{onboardingRequired:true});}
   catch {res.status(503).json({error:{message:"Email verification is unavailable."}});}
+});
+router.post("/auth/resend-verification",limit,async(req,res) => {
+  if(!usesSupabase()) {res.sendStatus(503);return;}
+  const email=typeof req.body.email === "string" ? req.body.email.trim().toLowerCase() : "";
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {res.status(400).json({error:{message:"Enter the email address used to create your account."}});return;}
+  try {const {error}=await supabase(req,res).auth.resend({type:"signup",email});if(error) {res.status(400).json({error:{message:error.message}});return;}res.sendStatus(204);}
+  catch {res.status(503).json({error:{message:"A new verification code could not be sent."}});}
 });
 router.get("/auth/google",limit,async(req,res) => {
   if(!usesSupabase() || process.env.GOOGLE_AUTH_ENABLED !== "true") {res.status(503).json({error:{message:"Google sign-in has not been configured."}});return;}
@@ -168,7 +178,8 @@ router.get("/auth/callback",limit,async(req,res) => {
     // Reuse session creation, but send a redirect instead of JSON for the callback.
     const value=randomBytes(32).toString("hex"); const lifetime=Math.min(data.session.expires_in*1000,3600000);
     sqlite.prepare("INSERT INTO sessions (token_hash,account_id,expires_at,access_token,refresh_token) VALUES (?,?,?,?,?)").run(hash(value),account.id,Date.now()+lifetime,data.session.access_token,data.session.refresh_token);
-    res.cookie("wellfarm_session",value,{...cookieOptions,maxAge:lifetime});res.redirect("/farmer");
+    const savedProfile=JSON.parse(account.profile) as {name?:string};
+    res.cookie("wellfarm_session",value,{...cookieOptions,maxAge:lifetime});res.redirect(savedProfile.name ? "/farmer" : "/onboarding");
   }catch {res.redirect("/login?error=google");}
 });
 export default router;

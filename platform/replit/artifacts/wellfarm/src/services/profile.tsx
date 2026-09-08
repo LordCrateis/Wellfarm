@@ -4,7 +4,10 @@ import { crops } from "@/data/mock";
 export interface Profile {
   state?: string;
   district?: string;
+  city?: string;
   avatar?: string;
+  firstName?: string;
+  lastName?: string;
   name: string;
   farm: string;
   crops: string[];
@@ -18,8 +21,11 @@ export const emptyProfile: Profile = { name: "", farm: "", crops: [], workspace:
 export function normalizeProfile(value: unknown): Profile {
   const data = value && typeof value === "object" ? value as Partial<Profile> : {};
   return {
-    ...(typeof data.state === "string" ? {state:data.state.slice(0,100)} : {}),
-    ...(typeof data.district === "string" ? {district:data.district.slice(0,100)} : {}),
+    ...(typeof data.state === "string" ? {state:data.state.trim().slice(0,100)} : {}),
+    ...(typeof data.district === "string" ? {district:data.district.trim().slice(0,100)} : {}),
+    ...(typeof data.city === "string" ? {city:data.city.trim().slice(0,100)} : {}),
+    ...(typeof data.firstName === "string" ? {firstName:data.firstName.trim().slice(0,50)} : {}),
+    ...(typeof data.lastName === "string" ? {lastName:data.lastName.trim().slice(0,50)} : {}),
     ...(typeof data.avatar === "string" && data.avatar.length < 400000 && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(data.avatar) ? { avatar: data.avatar } : {}),
     name: typeof data.name === "string" ? data.name.trim().slice(0, 80) : "",
     farm: typeof data.farm === "string" ? data.farm.trim().slice(0, 100) : "",
