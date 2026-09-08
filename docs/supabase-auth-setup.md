@@ -2,7 +2,7 @@
 
 ## Current status
 
-The user selected the existing `indra-studio` project (`wgnbgezilvygnmubwyny`) for shared authentication. Its URL and publishable key are saved in the ignored root `.env`. Google and email authentication are enabled remotely. Wellfarm still uses local authentication until dashboard redirect/CAPTCHA/email configuration and account migration are verified. No Indra tables, policies, users or settings have been changed.
+The user selected the existing `indra-studio` project (`wgnbgezilvygnmubwyny`) for shared authentication. Its URL and publishable key are saved in the ignored root `.env`. Wellfarm is configured to use its Google and email authentication. No Indra tables, policies, users or settings have been changed by the application.
 
 ## Shared Indra project safety
 
@@ -11,10 +11,21 @@ The user selected the existing `indra-studio` project (`wgnbgezilvygnmubwyny`) f
 - Wellfarm admins see only Wellfarm accounts, not every identity in Indra's Auth user pool. Admin roles remain local to Wellfarm.
 - No service-role key is needed for this shared-auth arrangement. Do not copy Indra's privileged key into Wellfarm unnecessarily.
 - Preserve Indra's Site URL. Add `http://localhost:5173/api/auth/callback` to the existing redirect allowlist without replacing its other entries. Dashboard sign-in is currently needed to inspect and make that additive change.
-- Do not enable project-wide CAPTCHA or replace email templates just for Wellfarm without checking Indra's compatibility. These settings affect both apps. Email OTP is not yet verified. New free projects using default SMTP cannot customize email templates under the June 2026 change; a compatible custom SMTP setup may be necessary.
+- Do not remove Indra's existing confirmation link from the shared Confirm signup template. Wellfarm's numeric-code screen additionally requires `{{ .Token }}` in that template. Keeping both variables lets Indra continue using its link while Wellfarm users can enter the code. These settings affect both apps. Email OTP delivery still needs a manual end-to-end check.
 - Run `node services/vision/scripts/test_auth_project_policy.mjs` and, after building the API, `node services/vision/scripts/test_shared_auth_deletion.mjs`. The latter mocks only Supabase to prove Wellfarm deletion makes no remote identity mutation.
 
 The application database, scan files and conversations remain local. Selecting Indra for Auth does not migrate them to Supabase Postgres or Storage.
+
+## Shared-project email OTP template
+
+In Supabase Dashboard, open **Authentication → Email Templates → Confirm signup**. Preserve the existing link and add a clearly labelled code using the `{{ .Token }}` variable, for example:
+
+```html
+<p>Your Wellfarm verification code is:</p>
+<h2>{{ .Token }}</h2>
+```
+
+Save the template, restart `npm run dev`, and create a fresh test account with an email address that has not already been confirmed. The signup screen will request that numeric code, verify it with Supabase, and then open the farmer-profile setup page. The resend control uses Supabase's signup resend endpoint and is subject to Supabase's email rate limits.
 
 ## Reference: dedicated project setup (not the selected shared configuration)
 
