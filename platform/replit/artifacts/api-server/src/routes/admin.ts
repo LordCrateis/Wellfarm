@@ -3,9 +3,11 @@ import { sqlite, db, scans, type Scan } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { requireAccount } from "./account";
-import { openStoredImage } from "../lib/uploads";
-import { analyzeScan } from "../services/vision";
+import { openStoredImage, removeStoredImage } from "../lib/uploads";
+import { analyzeScan, isVisionBusy } from "../services/vision";
 import { extname } from "node:path";
+import { isSharedAuthProject } from "../services/auth-project-policy";
+import { supabaseAdmin, usesSupabase } from "../services/supabase-auth";
 
 const router = Router();
 const admin: RequestHandler = (_req,res,next) => {
@@ -20,6 +22,30 @@ router.get("/admin/users", (req,res) => {
 });
 router.get("/admin/users/:id/scans", (req,res) => {
   res.json(sqlite.prepare("SELECT scans.*, scan_owners.hidden_at FROM scans JOIN scan_owners ON scans.id = scan_owners.scan_id WHERE account_id = ? ORDER BY created_at DESC").all(req.params.id));
+});
+router.delete("/admin/users/:id", async (req,res) => {
+  const target = sqlite.prepare("SELECT id,email,role,supabase_id FROM accounts WHERE id = ?").get(req.params.id) as {id:string;email:string;role:string;supabase_id:string|null}|undefined;
+  if (!target) {res.sendStatus(404);return;}
+  if (target.role !== "farmer") {res.status(403).json({error:{message:"Administrator accounts cannot be deleted here."}});return;}
+  const confirmation = typeof req.body.confirmEmail === "string" ? req.body.confirmEmail.trim().toLowerCase() : "";
+  if (confirmation !== target.email.toLowerCase()) {res.status(400).json({error:{message:"Enter the farmer’s email address to confirm deletion."}});return;}
+  if (isVisionBusy()) {res.status(409).json({error:{message:"Wait for crop analysis to finish before deleting this account."}});return;}
+
+  if (usesSupabase() && !isSharedAuthProject()) {
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {res.status(503).json({error:{message:"Supabase administrator deletion is not configured."}});return;}
+    if (target.supabase_id) {
+      const {error} = await supabaseAdmin().auth.admin.deleteUser(target.supabase_id);
+      if (error) {res.status(503).json({error:{message:"Supabase account deletion failed. Please retry."}});return;}
+    }
+  }
+
+  const ownedScans = sqlite.prepare("SELECT scans.id,scans.image_path FROM scans JOIN scan_owners ON scans.id = scan_owners.scan_id WHERE scan_owners.account_id = ?").all(target.id) as {id:string;image_path:string|null}[];
+  for (const scan of ownedScans) if (scan.image_path) removeStoredImage(scan.image_path);
+  sqlite.transaction(() => {
+    for (const scan of ownedScans) sqlite.prepare("DELETE FROM scans WHERE id = ?").run(scan.id);
+    sqlite.prepare("DELETE FROM accounts WHERE id = ?").run(target.id);
+  })();
+  res.sendStatus(204);
 });
 router.get("/admin/scans/:id/image", (req,res,next) => {
   const scan = db.select().from(scans).where(eq(scans.id,String(req.params.id))).get();
