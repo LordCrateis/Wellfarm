@@ -66,6 +66,14 @@ router.post("/auth/register", limit, async (req, res) => {
       const {data,error} = await supabase(req,res).auth.signUp({email,password});
       if(error) {res.status(400).json({error:{message:error.message}});return;}
       if(data.session) {res.status(503).json({error:{message:"Email confirmation must be enabled in Supabase before registration can proceed."}});return;}
+      // With email confirmation enabled, Supabase deliberately returns a fake
+      // user (with no identities) when the address already belongs to an
+      // account. Do not send that person to the OTP screen: resend cannot send
+      // a signup code for this response, and changing the email with a +alias
+      // is not a valid product flow.
+      if (!data.user || (Array.isArray(data.user.identities) && data.user.identities.length === 0)) {
+        res.status(409).json({error:{code:"ACCOUNT_EXISTS",message:"This email already has an account. Log in with it or continue with Google—do not change your email address."}});return;
+      }
       res.json({verificationRequired:true}); return;
     } catch(error) {res.status(503).json({error:{message:error instanceof TurnstileConfigurationError ? "CAPTCHA is not configured correctly." : "Supabase registration is not configured."}});return;}
   }
