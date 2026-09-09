@@ -2,21 +2,20 @@
 
 ## Current status
 
-The user selected the existing `indra-studio` project (`wgnbgezilvygnmubwyny`) for shared authentication. Its URL and publishable key are saved in the ignored root `.env`. Wellfarm is configured to use its Google and email authentication. No Indra tables, policies, users or settings have been changed by the application.
+The selected Supabase project is now dedicated to Wellfarm authentication. Its URL and publishable key are saved in the ignored root `.env`; `SUPABASE_PROJECT_MODE=dedicated` enables server-side session revocation and Auth user deletion.
 
-## Shared Indra project safety
+## Dedicated-project safety
 
-- Keep `SUPABASE_PROJECT_MODE=shared`. This is also the code's safe default; Indra's hostname is protected even if the mode is mistakenly set to dedicated.
-- Wellfarm account deletion removes only Wellfarm application data and local sessions. It never deletes the shared Supabase identity or globally signs out Indra sessions. Users are informed in the deletion dialog. Signing into Wellfarm again can create a new empty Wellfarm profile.
-- Wellfarm admins see only Wellfarm accounts, not every identity in Indra's Auth user pool. Admin roles remain local to Wellfarm.
-- No service-role key is needed for this shared-auth arrangement. Do not copy Indra's privileged key into Wellfarm unnecessarily.
-- Preserve Indra's Site URL. Add `http://localhost:5173/api/auth/callback` to the existing redirect allowlist without replacing its other entries. Dashboard sign-in is currently needed to inspect and make that additive change.
-- Do not remove Indra's existing confirmation link from the shared Confirm signup template. Wellfarm's numeric-code screen additionally requires `{{ .Token }}` in that template. Keeping both variables lets Indra continue using its link while Wellfarm users can enter the code. These settings affect both apps. Email OTP delivery still needs a manual end-to-end check.
-- Run `node services/vision/scripts/test_auth_project_policy.mjs` and, after building the API, `node services/vision/scripts/test_shared_auth_deletion.mjs`. The latter mocks only Supabase to prove Wellfarm deletion makes no remote identity mutation.
+- Keep `SUPABASE_PROJECT_MODE=dedicated` and store `SUPABASE_SERVICE_ROLE_KEY` only in the server environment. Never expose or commit it.
+- Wellfarm account deletion removes the Supabase Auth user together with local sessions, profile data, scans, reports, feedback and conversations.
+- Wellfarm admins see and manage only accounts that have entered Wellfarm; admin roles remain server-controlled and cannot be granted through profile metadata.
+- Keep `http://localhost:5173/api/auth/callback` and the eventual production callback in the redirect allowlist.
+- The Confirm signup template must include `{{ .Token }}` for Wellfarm's numeric OTP screen.
+- `node services/vision/scripts/test_auth_project_policy.mjs` verifies that only an explicit `dedicated` setting enables privileged Auth mutations.
 
-The application database, scan files and conversations remain local. Selecting Indra for Auth does not migrate them to Supabase Postgres or Storage.
+The application database, scan files and conversations remain local. Selecting a Supabase project for Auth does not migrate them to Supabase Postgres or Storage.
 
-## Shared-project email OTP template
+## Email OTP template
 
 In Supabase Dashboard, open **Authentication → Email Templates → Confirm signup**. Preserve the existing link and add a clearly labelled code using the `{{ .Token }}` variable, for example:
 
@@ -27,14 +26,14 @@ In Supabase Dashboard, open **Authentication → Email Templates → Confirm sig
 
 Save the template, restart `npm run dev`, and create a fresh test account with an email address that has not already been confirmed. The signup screen will request that numeric code, verify it with Supabase, and then open the farmer-profile setup page. The resend control uses Supabase's signup resend endpoint and is subject to Supabase's email rate limits.
 
-## Reference: dedicated project setup (not the selected shared configuration)
+## Dedicated project setup
 
 1. Create Wellfarm in the Shivam Tamboli organization, using a free project. Keep existing project data untouched.
 2. Put the project URL, publishable key and server-only service-role key into the root `.env` using the variable names in `.env.example`. Never put the service-role key in frontend variables or commit it.
 3. Enable email confirmation in Supabase Auth. In the Confirm signup email template, include `{{ .Token }}` so the user can enter the emailed OTP in Wellfarm. The built-in mail sender is restricted; configure an appropriate no-cost SMTP provider before inviting arbitrary email addresses, and verify its current sending limits.
 4. Create a free Cloudflare Turnstile widget for the app's hostname. Set `TURNSTILE_SITE_KEY` in `.env`, and set its **secret** in Supabase Auth's CAPTCHA settings with Turnstile selected. Do not use test CAPTCHA keys on a public deployment.
 5. Configure Google's OAuth client and enable the Google provider in Supabase. Add Supabase's displayed callback URL to the Google client's authorized redirect URIs. Add `http://localhost:5173/api/auth/callback` (and the eventual HTTPS production callback) to Supabase's redirect allowlist. Set `GOOGLE_AUTH_ENABLED=true` only after configuration is complete.
-6. For a genuinely dedicated project only, set `SUPABASE_PROJECT_MODE=dedicated`. Set `APP_ORIGIN` to the exact app origin, `AUTH_PROVIDER=supabase`, and `WELLFARM_ADMIN_EMAIL=shivamrtamboli62@gmail.com`. Restart `npm run dev`.
+6. Set `SUPABASE_PROJECT_MODE=dedicated`. Set `APP_ORIGIN` to the exact app origin, `AUTH_PROVIDER=supabase`, and `WELLFARM_ADMIN_EMAIL` to the verified administrator email. Restart `npm run dev`.
 7. Sign up and verify the administrator's email, or use Google with that verified email. Only the server-configured, verified email is eligible for the initial admin role; public profile fields cannot grant access.
 
 Supabase manages password hashing in Supabase mode. Local fallback accounts use salted scrypt hashes. Existing local accounts are **not automatically linked by email** to Supabase identities: an explicit, ownership-verified migration is required to preserve their records. Do not delete them as a migration shortcut. Auth switching is not a migration of the local application database or image files into Supabase.
@@ -44,7 +43,7 @@ Sessions use opaque HttpOnly cookies; Supabase access tokens stay server-side. S
 ## Data behavior
 
 - Farmer history removal hides scans from all farmer scan endpoints. Administrators can still see the retained images and cached reports. The confirmation dialog and sign-in page disclose this.
-- Account deletion permanently removes the account's local scans, retained scans, images, reports, feedback and conversations. Only dedicated-project mode also deletes its Supabase identity; shared Indra identities are preserved. This is different from history removal.
+- Account deletion permanently removes the Supabase identity plus local scans, retained scans, images, reports, feedback and conversations. This is different from history removal.
 - State and district are self-reported profile fields, not verified GPS claims.
 - Conversations are private per account, stored locally and polled every five seconds. They do not send email, SMS or lab cases.
 

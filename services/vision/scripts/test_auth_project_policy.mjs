@@ -3,7 +3,7 @@ import { isSharedAuthProject } from '../../../platform/replit/artifacts/api-serv
 
 assert.equal(isSharedAuthProject({}), true, 'Missing configuration must not allow Auth user deletion');
 assert.equal(isSharedAuthProject({SUPABASE_PROJECT_MODE:'shared'}), true);
-assert.equal(isSharedAuthProject({SUPABASE_PROJECT_MODE:'dedicated',SUPABASE_URL:'https://wgnbgezilvygnmubwyny.supabase.co'}), true, 'Indra stays protected even after an accidental mode change');
-assert.equal(isSharedAuthProject({SUPABASE_PROJECT_MODE:'dedicated',SUPABASE_URL:'invalid'}), true);
+assert.equal(isSharedAuthProject({SUPABASE_PROJECT_MODE:'dedicated',SUPABASE_URL:'https://wgnbgezilvygnmubwyny.supabase.co'}), false);
+assert.equal(isSharedAuthProject({SUPABASE_PROJECT_MODE:'dedicated',SUPABASE_URL:'invalid'}), false);
 assert.equal(isSharedAuthProject({SUPABASE_PROJECT_MODE:'dedicated',SUPABASE_URL:'https://dedicated-example.supabase.co'}), false);
-console.log('Shared Auth project safety checks passed.');
+console.log('Auth project ownership mode checks passed.');
