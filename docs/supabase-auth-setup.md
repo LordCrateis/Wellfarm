@@ -15,16 +15,21 @@ The selected Supabase project is now dedicated to Wellfarm authentication. Its U
 
 The application database, scan files and conversations remain local. Selecting a Supabase project for Auth does not migrate them to Supabase Postgres or Storage.
 
-## Email OTP template
+## Branded authentication email and delivery
 
-In Supabase Dashboard, open **Authentication → Email Templates → Confirm signup**. Preserve the existing link and add a clearly labelled code using the `{{ .Token }}` variable, for example:
+Wellfarm's complete authentication-email set lives in `supabase/email-templates/templates.mjs`. It uses a compact W monogram, restrained fieldbook colours, concise security copy, no remote images, no promotional material and no tracking links. Signup and reauthentication messages use `{{ .Token }}`; link-based flows use only `{{ .ConfirmationURL }}`.
 
-```html
-<p>Your Wellfarm verification code is:</p>
-<h2>{{ .Token }}</h2>
-```
+Supabase's default sender is for testing, not public delivery. Configure Resend SMTP with a sender domain you control and have verified in Resend. The repository can apply both SMTP and all templates in one operation:
 
-Save the template, restart `npm run dev`, and create a fresh test account with an email address that has not already been confirmed. The signup screen will request that numeric code, verify it with Supabase, and then open the farmer-profile setup page. The resend control uses Supabase's signup resend endpoint and is subject to Supabase's email rate limits.
+1. Verify a sender domain in Resend and wait until its SPF and DKIM records show as verified. Add a DMARC record at the domain host as well. A free mailbox address such as Gmail cannot be used as the sending domain.
+2. Create a restricted Resend API key for this project.
+3. Create a Supabase personal access token at `https://supabase.com/dashboard/account/tokens`. This is different from the project service-role key.
+4. Add `SUPABASE_ACCESS_TOKEN`, `RESEND_API_KEY`, `AUTH_EMAIL_FROM` and `AUTH_EMAIL_SENDER_NAME` to the ignored root `.env`. Keep all of them server-only.
+5. Run `npm run auth:test-email-templates`, then `npm run auth:configure-email`. The configuration command never prints either secret.
+6. In Resend, disable click/open tracking for the authentication sender. Tracking can rewrite Supabase verification links and can hurt the security-email profile.
+7. Create a fresh account using a real Gmail address, enter the OTP, and verify the Resend event says `Delivered`. Test Outlook as a second mailbox. Spam placement cannot be guaranteed by application code; it depends on domain authentication, sender reputation, complaint rate and mailbox-provider filtering.
+
+The inbox avatar is not the website favicon. Gmail and other clients choose it from the sender identity and, where supported, BIMI. Set up BIMI only after SPF, DKIM and a DMARC enforcement policy are stable. The W monogram remains visible inside the email without loading an external image.
 
 ## Dedicated project setup
 

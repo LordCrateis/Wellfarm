@@ -1,0 +1,17 @@
+{
+  "name": "Wellfarm",
+  "short_name": "Wellfarm",
+  "description": "Your private crop-health fieldbook.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F7F4ED",
+  "theme_color": "#214E3B",
+  "icons": [
+    {
+      "src": "/favicon.svg?v=wellfarm-w2",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
