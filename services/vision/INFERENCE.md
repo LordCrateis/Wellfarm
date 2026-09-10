@@ -15,10 +15,14 @@ files only. A process loads the checkpoint per uncached photo, uses evaluation
 preprocessing and the selected crop's head, and returns three scores. The API
 allows one inference at a time with a two-minute timeout.
 
-Results are saved beside the uploaded image as `.analysis.json`, including model
-version. `GET /api/scans/:scanId/analysis` retrieves them; repeat POSTs reuse the
-saved result. Replacing the photo resets the scan to pending and requires a fresh
-analysis. Changing the configured model does not rewrite historical results.
+In dedicated Supabase mode, crop photos are private Storage objects and results
+are saved as JSONB with the Postgres scan record. The API downloads a temporary
+copy only while local Python inference runs and removes it afterwards. In local
+auth mode, the original local image and `.analysis.json` cache remain available
+for offline development. `GET /api/scans/:scanId/analysis` retrieves either form;
+repeat POSTs reuse the saved result. Replacing the photo resets the scan to pending
+and requires a fresh analysis. Changing the configured model does not rewrite
+historical results.
 
 Scores below 0.70 or a first/second score gap below 0.15 trigger uncertainty.
 These are heuristic display thresholds, not calibrated accuracy guarantees.

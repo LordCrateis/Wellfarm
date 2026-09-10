@@ -6,6 +6,7 @@
     "dev": "node ./platform/replit/scripts/dev.mjs",
     "auth:configure-email": "node --env-file=.env scripts/configure_supabase_email.mjs",
     "auth:test-email-templates": "node scripts/test_email_templates.mjs",
+    "test:supabase-persistence": "pnpm --dir platform/replit/artifacts/api-server run test:supabase-persistence",
     "dataset:prepare": "node services/vision/scripts/run_python.mjs services/vision/scripts/prepare_dataset.py",
     "test:dataset": "node services/vision/scripts/run_python.mjs -m unittest discover -s services/vision/tests -v",
     "model:setup": "node services/vision/scripts/run_python.mjs -m pip install -r services/vision/requirements-ml.txt",

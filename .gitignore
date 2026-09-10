@@ -53,3 +53,4 @@ tmp/
 .cache/
 .pnpm-store/
 .firecrawl/
+supabase/.temp/

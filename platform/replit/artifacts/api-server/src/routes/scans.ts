@@ -1,7 +1,5 @@
-import { randomUUID } from "node:crypto";
 import { extname } from "node:path";
 import { Router, type IRouter, type RequestHandler } from "express";
-import { desc, eq, sql } from "drizzle-orm";
 import multer from "multer";
 import { analyzeScan, isVisionBusy } from "../services/vision";
 import {
@@ -10,14 +8,30 @@ import {
   GetScanParams,
   GetScanResponse,
 } from "@workspace/api-zod";
-import { db, sqlite, scans, type Scan } from "@workspace/db";
+import { sqlite } from "@workspace/db";
 import {
+  downloadStoredImage,
   imageUpload,
   isSupportedImage,
+  isSupportedImageBuffer,
   openStoredImage,
+  removeRemoteImages,
   removeStoredImage,
+  uploadStoredImage,
 } from "../lib/uploads";
 import { getApproximateLocation } from "../services/location";
+import {
+  createStoredScan,
+  findStoredScan,
+  hideStoredScan,
+  listRegionalScans,
+  listStoredScans,
+  persistentOwnerId,
+  type StoredScan,
+  updateStoredScan,
+  usesSupabaseScanStore,
+} from "../services/scan-store";
+import type { Account } from "./account";
 
 const router: IRouter = Router();
 
@@ -37,7 +51,7 @@ function decodeSymptoms(value: string | null): string[] | undefined {
   }
 }
 
-function toResponse(scan: Scan) {
+function toResponse(scan: StoredScan) {
   return {
     id: scan.id,
     crop: scan.crop,
@@ -71,12 +85,7 @@ function validationError(
   };
 }
 
-function findScan(scanId: string, accountId: string): Scan | undefined {
-  if (!sqlite.prepare("SELECT 1 FROM scan_owners WHERE scan_id = ? AND account_id = ? AND hidden_at IS NULL").get(scanId, accountId)) return undefined;
-  return db.select().from(scans).where(eq(scans.id, scanId)).get();
-}
-
-const requireExistingScan: RequestHandler = (req, res, next) => {
+const requireExistingScan: RequestHandler = async (req, res, next) => {
   const parsed = GetScanParams.safeParse(req.params);
 
   if (!parsed.success) {
@@ -84,19 +93,15 @@ const requireExistingScan: RequestHandler = (req, res, next) => {
     return;
   }
 
-  const scan = findScan(parsed.data.scanId, res.locals.account.id);
-  if (!scan) {
-    res.status(404).json({
-      error: {
-        code: "SCAN_NOT_FOUND",
-        message: "No scan exists with that identifier.",
-      },
-    });
-    return;
-  }
-
-  res.locals.scan = scan;
-  next();
+  try {
+    const scan = await findStoredScan(parsed.data.scanId, res.locals.account as Account);
+    if (!scan) {
+      res.status(404).json({ error: { code: "SCAN_NOT_FOUND", message: "No scan exists with that identifier." } });
+      return;
+    }
+    res.locals.scan = scan;
+    next();
+  } catch (error) { next(error); }
 };
 
 const uploadOneImage: RequestHandler = (req, res, next) => {
@@ -132,7 +137,6 @@ router.post("/scans", async (req, res, next) => {
   }
 
   try {
-    const now = new Date();
     const input = parsed.data;
     const accountLocation = sqlite
       .prepare("SELECT state, district FROM accounts WHERE id = ?")
@@ -146,45 +150,16 @@ router.post("/scans", async (req, res, next) => {
     } catch {
       // A temporary place-name failure must not prevent the farmer saving a scan.
     }
-    const scan = db
-      .insert(scans)
-      .values({
-        id: randomUUID(),
-        crop: input.crop,
-        symptoms: input.symptoms ? JSON.stringify(input.symptoms) : null,
-        affectedPart: input.affectedPart ?? null,
-        growthStage: input.growthStage ?? null,
-        affectedAreaPercentage: input.affectedAreaPercentage ?? null,
-        nearbyPlantsAffected: input.nearbyPlantsAffected ?? null,
-        notes: input.notes ?? null,
-        latitude: input.latitude,
-        longitude: input.longitude,
-        locationState,
-        locationDistrict,
-        imagePath: null,
-        status: "pending",
-        createdAt: now,
-        updatedAt: now,
-      })
-      .returning()
-      .get();
-
-    sqlite.prepare("INSERT INTO scan_owners (scan_id, account_id) VALUES (?, ?)").run(scan.id, res.locals.account.id);
+    const scan = await createStoredScan(res.locals.account as Account, { ...input, locationState, locationDistrict });
     res.status(201).json(CreateScanResponse.parse(toResponse(scan)));
   } catch (error) {
     next(error);
   }
 });
 
-router.get("/scans", (_req, res, next) => {
+router.get("/scans", async (_req, res, next) => {
   try {
-    const storedScans = db
-      .select()
-      .from(scans)
-      .where(sql`${scans.id} IN (SELECT scan_id FROM scan_owners WHERE account_id = ${res.locals.account.id} AND hidden_at IS NULL)`)
-      .orderBy(desc(scans.createdAt))
-      .limit(100)
-      .all();
+    const storedScans = await listStoredScans(res.locals.account as Account);
 
     res.json(
       storedScans.map((scan) => CreateScanResponse.parse(toResponse(scan))),
@@ -196,39 +171,20 @@ router.get("/scans", (_req, res, next) => {
 
 router.get("/scans/regional", async (_req, res, next) => {
   try {
-    const legacyScans = sqlite.prepare(`
-      SELECT scans.id, scans.latitude, scans.longitude
-      FROM scans
-      JOIN scan_owners ON scan_owners.scan_id = scans.id
-      WHERE scan_owners.hidden_at IS NULL
-        AND (scans.location_state = '' OR scans.location_district = '')
-      ORDER BY scans.created_at DESC
-      LIMIT 5
-    `).all() as Array<{ id: string; latitude: number; longitude: number }>;
+    const allScans = await listRegionalScans();
+    const legacyScans = allScans.filter((scan) => !scan.locationState || !scan.locationDistrict).slice(0, 5);
     for (const scan of legacyScans) {
       try {
         const location = await getApproximateLocation(scan.latitude, scan.longitude);
-        sqlite.prepare(`
-          UPDATE scans
-          SET location_state = ?, location_district = ?
-          WHERE id = ?
-        `).run(location.state ?? "", location.district ?? "", scan.id);
+        await updateStoredScan(scan.id, { locationState: location.state ?? "", locationDistrict: location.district ?? "" });
+        scan.locationState = location.state ?? "";
+        scan.locationDistrict = location.district ?? "";
       } catch {
         // Leave unresolved legacy scans available under the fallback location labels.
       }
     }
 
-    const regionalScans = db
-      .select()
-      .from(scans)
-      .where(sql`${scans.id} IN (
-        SELECT scan_id FROM scan_owners WHERE hidden_at IS NULL
-      )`)
-      .orderBy(desc(scans.createdAt))
-      .limit(500)
-      .all();
-
-    const summaries = await Promise.all(regionalScans.map(async (scan) => {
+    const summaries = await Promise.all(allScans.map(async (scan) => {
       let report: { candidates?: Array<{ condition?: string }>; severity?: string } | null = null;
       if (scan.status === "completed") {
         try {
@@ -258,7 +214,7 @@ router.get("/scans/regional", async (_req, res, next) => {
   }
 });
 
-router.get("/scans/:scanId", (req, res, next) => {
+router.get("/scans/:scanId", async (req, res, next) => {
   const parsed = GetScanParams.safeParse(req.params);
 
   if (!parsed.success) {
@@ -267,7 +223,7 @@ router.get("/scans/:scanId", (req, res, next) => {
   }
 
   try {
-    const scan = findScan(parsed.data.scanId, res.locals.account.id);
+    const scan = await findStoredScan(parsed.data.scanId, res.locals.account as Account);
 
     if (!scan) {
       res.status(404).json({
@@ -289,9 +245,9 @@ router.post(
   "/scans/:scanId/image",
   requireExistingScan,
   uploadOneImage,
-  (req, res, next) => {
+  async (req, res, next) => {
     const file = req.file;
-    const existingScan = res.locals.scan as Scan;
+    const existingScan = res.locals.scan as StoredScan;
 
     if (!file) {
       res.status(415).json({
@@ -303,9 +259,13 @@ router.post(
       return;
     }
 
+    let nextImagePath: string | undefined;
     try {
-      if (!isSupportedImage(file.path, file.mimetype)) {
-        removeStoredImage(file.filename);
+      const supported = usesSupabaseScanStore()
+        ? isSupportedImageBuffer(file.buffer, file.mimetype)
+        : isSupportedImage(file.path, file.mimetype);
+      if (!supported) {
+        if (!usesSupabaseScanStore()) removeStoredImage(file.filename);
         res.status(415).json({
           error: {
             code: "UNSUPPORTED_IMAGE",
@@ -315,27 +275,30 @@ router.post(
         return;
       }
 
-      const scan = db
-        .update(scans)
-        .set({ imagePath: file.filename, status: "pending", updatedAt: new Date() })
-        .where(eq(scans.id, existingScan.id))
-        .returning()
-        .get();
+      nextImagePath = await uploadStoredImage(persistentOwnerId(res.locals.account as Account), existingScan.id, file);
+      const scan = await updateStoredScan(existingScan.id, {
+        imagePath: nextImagePath,
+        imageContentType: file.mimetype,
+        analysis: null,
+        status: "pending",
+      });
 
-      if (existingScan.imagePath && existingScan.imagePath !== file.filename) {
-        removeStoredImage(existingScan.imagePath);
+      if (existingScan.imagePath && existingScan.imagePath !== nextImagePath) {
+        if (usesSupabaseScanStore()) await removeRemoteImages([existingScan.imagePath]).catch(() => undefined);
+        else removeStoredImage(existingScan.imagePath);
       }
 
       res.json(CreateScanResponse.parse(toResponse(scan)));
     } catch (error) {
-      removeStoredImage(file.filename);
+      if (nextImagePath && usesSupabaseScanStore()) await removeRemoteImages([nextImagePath]).catch(() => undefined);
+      else if (!usesSupabaseScanStore()) removeStoredImage(file.filename);
       next(error);
     }
   },
 );
 
-router.get("/scans/:scanId/image", requireExistingScan, (_req, res, next) => {
-  const scan = res.locals.scan as Scan;
+router.get("/scans/:scanId/image", requireExistingScan, async (_req, res, next) => {
+  const scan = res.locals.scan as StoredScan;
 
   if (!scan.imagePath) {
     res.status(404).json({
@@ -347,31 +310,31 @@ router.get("/scans/:scanId/image", requireExistingScan, (_req, res, next) => {
     return;
   }
 
-  const stream = openStoredImage(scan.imagePath);
-  if (!stream) {
-    res.status(404).json({
-      error: {
-        code: "IMAGE_NOT_FOUND",
-        message: "The stored scan image could not be found.",
-      },
-    });
-    return;
-  }
-
-  res.type(extname(scan.imagePath));
-  res.setHeader("Cache-Control", "private, max-age=3600");
-  stream.on("error", next);
-  stream.pipe(res);
+  try {
+    res.setHeader("Cache-Control", "private, max-age=3600");
+    if (usesSupabaseScanStore()) {
+      const image = await downloadStoredImage(scan.imagePath);
+      if (!image) { res.status(404).json({ error: { code: "IMAGE_NOT_FOUND", message: "The stored scan image could not be found." } }); return; }
+      res.type(scan.imageContentType ?? extname(scan.imagePath));
+      res.send(image);
+      return;
+    }
+    const stream = openStoredImage(scan.imagePath);
+    if (!stream) { res.status(404).json({ error: { code: "IMAGE_NOT_FOUND", message: "The stored scan image could not be found." } }); return; }
+    res.type(extname(scan.imagePath));
+    stream.on("error", next);
+    stream.pipe(res);
+  } catch (error) { next(error); }
 });
 
 router.post("/scans/:scanId/analysis", requireExistingScan, async (_req, res) => {
   try {
-    const scan = res.locals.scan as Scan;
+    const scan = res.locals.scan as StoredScan;
     const result = await analyzeScan(scan);
     // Do not mark a replacement photo complete while an older photo is running.
-    const current = findScan(scan.id, res.locals.account.id);
+    const current = await findStoredScan(scan.id, res.locals.account as Account);
     if (current?.imagePath === scan.imagePath) {
-      db.update(scans).set({ status: "completed", updatedAt: new Date() }).where(eq(scans.id, scan.id)).run();
+      await updateStoredScan(scan.id, { status: "completed" });
     }
     res.json(result);
   } catch (error) {
@@ -383,20 +346,20 @@ router.post("/scans/:scanId/analysis", requireExistingScan, async (_req, res) =>
 
 router.get("/scans/:scanId/analysis", requireExistingScan, async (_req, res, next) => {
   try {
-    const result = await analyzeScan(res.locals.scan as Scan, true);
+    const result = await analyzeScan(res.locals.scan as StoredScan, true);
     if (!result) { res.status(404).json({ error: { code: "NO_ANALYSIS", message: "This photo has not been analyzed yet." } }); return; }
     res.json(result);
   } catch (error) { next(error); }
 });
 
-router.delete("/scans/:scanId", requireExistingScan, (_req, res, next) => {
+router.delete("/scans/:scanId", requireExistingScan, async (_req, res, next) => {
   if (isVisionBusy()) {
     res.status(409).json({ error: { message: "Wait for the current analysis to finish before deleting scans." } });
     return;
   }
   try {
-    const scan = res.locals.scan as Scan;
-    sqlite.prepare("UPDATE scan_owners SET hidden_at = ? WHERE scan_id = ? AND account_id = ?").run(Date.now(), scan.id, res.locals.account.id);
+    const scan = res.locals.scan as StoredScan;
+    await hideStoredScan(scan.id, res.locals.account as Account);
     res.sendStatus(204);
   } catch (error) { next(error); }
 });

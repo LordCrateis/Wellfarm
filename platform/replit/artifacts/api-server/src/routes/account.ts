@@ -2,12 +2,13 @@ import { Router, type RequestHandler } from "express";
 import { randomBytes, randomUUID, createHash, scrypt, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import { sqlite } from "@workspace/db";
-import { removeStoredImage } from "../lib/uploads";
+import { removeRemoteImages, removeStoredImage } from "../lib/uploads";
 import { isVisionBusy } from "../services/vision";
 import { supabase, supabaseAdmin, syncSupabaseUser, usesSupabase } from "../services/supabase-auth";
 import type { Session } from "@supabase/supabase-js";
 import { isSharedAuthProject } from "../services/auth-project-policy";
 import { TurnstileConfigurationError, verifyTurnstileToken } from "../services/turnstile";
+import { listOwnerScans, usesSupabaseScanStore } from "../services/scan-store";
 
 const derive = promisify(scrypt);
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
@@ -147,6 +148,7 @@ router.delete("/account", requireAccount, limit, async (req, res) => {
     if (!isSharedAuthProject() && !process.env.SUPABASE_SERVICE_ROLE_KEY) {res.status(503).json({error:{message:"Supabase account deletion has not been configured."}});return;}
   } else if (typeof req.body.password !== "string" || req.body.password.length > 128 || !await verify(req.body.password, account.password_hash)) { res.status(403).json({error: {message: "Enter your current password to delete your account."}}); return; }
   if (isVisionBusy()) { res.status(409).json({error: {message: "Wait for analysis to finish before deleting your account."}}); return; }
+  const ownedScans = await listOwnerScans(account.id, account.supabase_id);
   if (usesSupabase() && account.supabase_id && !isSharedAuthProject()) {
     const session = sqlite.prepare("SELECT access_token FROM sessions WHERE token_hash = ?").get(hash(token(req))) as {access_token:string};
     const revoked = await supabaseAdmin().auth.admin.signOut(session.access_token,"global");
@@ -154,10 +156,11 @@ router.delete("/account", requireAccount, limit, async (req, res) => {
     const {error} = await supabaseAdmin().auth.admin.deleteUser(account.supabase_id);
     if(error) {res.status(503).json({error:{message:"Supabase account deletion failed. Please retry."}});return;}
   }
-  const scans = sqlite.prepare("SELECT scans.id, image_path FROM scans JOIN scan_owners ON scans.id = scan_owners.scan_id WHERE account_id = ?").all(account.id) as {id: string; image_path: string | null}[];
-  for (const scan of scans) if (scan.image_path) removeStoredImage(scan.image_path);
+  const imagePaths = ownedScans.flatMap(scan => scan.imagePath ? [scan.imagePath] : []);
+  if (usesSupabaseScanStore()) await removeRemoteImages(imagePaths);
+  else for (const imagePath of imagePaths) removeStoredImage(imagePath);
   sqlite.transaction(() => {
-    for (const scan of scans) sqlite.prepare("DELETE FROM scans WHERE id = ?").run(scan.id);
+    if (!usesSupabaseScanStore()) for (const scan of ownedScans) sqlite.prepare("DELETE FROM scans WHERE id = ?").run(scan.id);
     sqlite.prepare("DELETE FROM accounts WHERE id = ?").run(account.id);
   })();
   res.clearCookie("wellfarm_session", cookieOptions).sendStatus(204);

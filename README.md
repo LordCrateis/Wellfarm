@@ -11,9 +11,9 @@ The project is designed to show careful product engineering around uncertain mac
 - Add crop and symptom context to an image.
 - Return ranked crop-condition candidates from the vision pipeline.
 - Explain results in clear language with visible uncertainty.
-- Save personal scan history through the local API.
+- Save private scan history, crop photos, and model results through Supabase.
 - Add live weather context through Open-Meteo.
-- Explore regional patterns using clearly identified sample or locally aggregated data.
+- Explore privacy-reduced regional patterns aggregated from saved farmer scans.
 - Inspect model provenance, dataset coverage, and known limitations.
 
 ## Deliberate boundaries
@@ -40,7 +40,7 @@ services/              Vision, advisory, intelligence, and API modules
 infrastructure/        Deployment notes
 ```
 
-Large datasets, generated manifests, model weights, uploads, databases, and secrets remain outside Git.
+Large training datasets, generated manifests, model weights, uploads, databases, and secrets remain outside Git. Production scan records and crop photos are stored in Supabase rather than bundled with a deployment.
 
 ## Run locally
 
@@ -50,6 +50,17 @@ npm run dev
 ```
 
 Then open [http://localhost:5173](http://localhost:5173). The launcher starts both the web application and its local API.
+
+With `AUTH_PROVIDER=supabase` and `SUPABASE_PROJECT_MODE=dedicated`, the API uses
+the private `wellfarm_scans` Postgres table and `wellfarm-scan-images` Storage
+bucket. The service-role key must remain server-side. Local-auth development and
+isolated tests continue to use SQLite and `data/uploads`.
+
+Verify the live persistence configuration without retaining test data:
+
+```bash
+npm run test:supabase-persistence
+```
 
 ## Prepare the vision dataset
 
@@ -65,7 +76,7 @@ The pipeline normalizes labels, removes exact duplicates, prevents duplicate lea
 
 Model v1 is explicitly scoped to rice, wheat, maize, cotton, sugarcane, soybean, tomato, and potato: 63,011 unique usable images across 54 labels. Groundnut and onion remain unsupported until trustworthy labeled sources are available.
 
-The repository now includes a resumable EfficientNetV2-S training and evaluation pipeline plus a shared-backbone crop-specific-head candidate initialized from the best global checkpoint. See `services/vision/README.md` for training commands, cached checkpoints, and machine-readable result files. Model inference integration and honest out-of-distribution handling follow after a candidate clears field-focused evaluation.
+The repository includes a resumable EfficientNetV2-S training and evaluation pipeline plus a shared-backbone crop-specific-head model initialized from the best global checkpoint. The API runs this model for uploaded photos and stores its result with the scan. See `services/vision/README.md` for training commands, cached checkpoints, and machine-readable result files. Honest out-of-distribution handling remains an explicit limitation.
 
 The current experiment continues from the crop-head winner under stronger
 phone and field-image augmentation while retaining that winner as an automatic

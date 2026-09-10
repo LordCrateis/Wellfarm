@@ -1,10 +1,11 @@
 import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
-import { readFile, writeFile, rename } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { readFile, writeFile, rename, mkdtemp, rm } from "node:fs/promises";
+import { dirname, extname, join } from "node:path";
+import { tmpdir } from "node:os";
 import { promisify } from "node:util";
-import type { Scan } from "@workspace/db";
-import { storedImagePath } from "../lib/uploads";
+import { downloadStoredImage, storedImagePath } from "../lib/uploads";
+import { type StoredScan, updateStoredScan, usesSupabaseScanStore } from "./scan-store";
 
 const execute = promisify(execFile);
 function projectRoot() {
@@ -19,12 +20,29 @@ function projectRoot() {
 let busy = false;
 export const isVisionBusy = () => busy;
 
-export async function analyzeScan(scan: Scan, savedOnly = false) {
-  const image = scan.imagePath && storedImagePath(scan.imagePath);
-  if (!image || !existsSync(image)) throw new Error("Upload a crop photo first.");
-  const cache = `${image}.analysis.json`;
-  try { return JSON.parse(await readFile(cache, "utf8")); }
-  catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+export async function analyzeScan(scan: StoredScan, savedOnly = false) {
+  if (!scan.imagePath) throw new Error("Upload a crop photo first.");
+  if (usesSupabaseScanStore() && scan.analysis) return scan.analysis;
+
+  let temporaryDirectory: string | undefined;
+  let image: string;
+  let cache: string | undefined;
+  if (usesSupabaseScanStore()) {
+    if (savedOnly) return null;
+    const imageBytes = await downloadStoredImage(scan.imagePath);
+    if (!imageBytes) throw new Error("The stored crop photo could not be downloaded.");
+    temporaryDirectory = await mkdtemp(join(tmpdir(), "wellfarm-inference-"));
+    const suffix = scan.imageContentType === "image/png" ? ".png" : extname(scan.imagePath) || ".jpg";
+    image = join(temporaryDirectory, `scan${suffix}`);
+    await writeFile(image, imageBytes);
+  } else {
+    const localImage = storedImagePath(scan.imagePath);
+    if (!localImage || !existsSync(localImage)) throw new Error("Upload a crop photo first.");
+    image = localImage;
+    cache = `${image}.analysis.json`;
+    try { return JSON.parse(await readFile(cache, "utf8")); }
+    catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+  }
   if (savedOnly) return null;
   if (busy) throw new Error("Another photo is being analyzed. Please retry shortly.");
   busy = true;
@@ -45,8 +63,15 @@ export async function analyzeScan(scan: Scan, savedOnly = false) {
       safeActions: ["Compare nearby plants for similar symptoms.", "Keep a clear close-up and whole-plant photo for comparison."],
       limitations: ["Model scores are not calibrated probabilities of a correct diagnosis.", "The selected crop must be correct. Unrelated images can still produce high scores.", "Do not choose chemical treatments from this result alone."],
     };
-    await writeFile(`${cache}.tmp`, JSON.stringify(result), "utf8");
-    await rename(`${cache}.tmp`, cache);
+    if (usesSupabaseScanStore()) {
+      await updateStoredScan(scan.id, { analysis: result });
+    } else if (cache) {
+      await writeFile(`${cache}.tmp`, JSON.stringify(result), "utf8");
+      await rename(`${cache}.tmp`, cache);
+    }
     return result;
-  } finally { busy = false; }
+  } finally {
+    busy = false;
+    if (temporaryDirectory) await rm(temporaryDirectory, { recursive: true, force: true });
+  }
 }

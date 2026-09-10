@@ -1,13 +1,13 @@
 import { Router, type RequestHandler } from "express";
-import { sqlite, db, scans, type Scan } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { sqlite } from "@workspace/db";
 import { randomUUID } from "node:crypto";
 import { requireAccount } from "./account";
-import { openStoredImage, removeStoredImage } from "../lib/uploads";
+import { downloadStoredImage, openStoredImage, removeRemoteImages, removeStoredImage } from "../lib/uploads";
 import { analyzeScan, isVisionBusy } from "../services/vision";
 import { extname } from "node:path";
 import { isSharedAuthProject } from "../services/auth-project-policy";
 import { supabaseAdmin, usesSupabase } from "../services/supabase-auth";
+import { findStoredScanForAdmin, listOwnerScans, type StoredScan, usesSupabaseScanStore } from "../services/scan-store";
 
 const router = Router();
 const admin: RequestHandler = (_req,res,next) => {
@@ -20,8 +20,16 @@ router.get("/admin/users", (req,res) => {
   const rows = sqlite.prepare("SELECT id,email,profile,state,district,role FROM accounts WHERE (? = '' OR state = ?) AND (? = '' OR district = ?) ORDER BY state,district,email").all(state,state,district,district) as {profile:string}[];
   res.json(rows.map(row => ({...row,profile:JSON.parse(row.profile)})));
 });
-router.get("/admin/users/:id/scans", (req,res) => {
-  res.json(sqlite.prepare("SELECT scans.*, scan_owners.hidden_at FROM scans JOIN scan_owners ON scans.id = scan_owners.scan_id WHERE account_id = ? ORDER BY created_at DESC").all(req.params.id));
+router.get("/admin/users/:id/scans", async (req,res,next) => {
+  try {
+    const target = sqlite.prepare("SELECT supabase_id FROM accounts WHERE id = ?").get(req.params.id) as {supabase_id:string|null}|undefined;
+    if (!target) {res.sendStatus(404);return;}
+    const stored = await listOwnerScans(String(req.params.id), target.supabase_id);
+    res.json(stored.map(scan => ({
+      id: scan.id, crop: scan.crop, created_at: scan.createdAt.getTime(),
+      hidden_at: scan.hiddenAt?.getTime() ?? null, image_path: scan.imagePath,
+    })));
+  } catch(error) {next(error);}
 });
 router.delete("/admin/users/:id", async (req,res) => {
   const target = sqlite.prepare("SELECT id,email,role,supabase_id FROM accounts WHERE id = ?").get(req.params.id) as {id:string;email:string;role:string;supabase_id:string|null}|undefined;
@@ -31,6 +39,7 @@ router.delete("/admin/users/:id", async (req,res) => {
   if (confirmation !== target.email.toLowerCase()) {res.status(400).json({error:{message:"Enter the farmer’s email address to confirm deletion."}});return;}
   if (isVisionBusy()) {res.status(409).json({error:{message:"Wait for crop analysis to finish before deleting this account."}});return;}
 
+  const ownedScans = await listOwnerScans(target.id, target.supabase_id);
   if (usesSupabase() && !isSharedAuthProject()) {
     if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {res.status(503).json({error:{message:"Supabase administrator deletion is not configured."}});return;}
     if (target.supabase_id) {
@@ -39,24 +48,38 @@ router.delete("/admin/users/:id", async (req,res) => {
     }
   }
 
-  const ownedScans = sqlite.prepare("SELECT scans.id,scans.image_path FROM scans JOIN scan_owners ON scans.id = scan_owners.scan_id WHERE scan_owners.account_id = ?").all(target.id) as {id:string;image_path:string|null}[];
-  for (const scan of ownedScans) if (scan.image_path) removeStoredImage(scan.image_path);
+  const imagePaths = ownedScans.flatMap(scan => scan.imagePath ? [scan.imagePath] : []);
+  if (usesSupabaseScanStore()) await removeRemoteImages(imagePaths);
+  else for (const imagePath of imagePaths) removeStoredImage(imagePath);
   sqlite.transaction(() => {
-    for (const scan of ownedScans) sqlite.prepare("DELETE FROM scans WHERE id = ?").run(scan.id);
+    if (!usesSupabaseScanStore()) for (const scan of ownedScans) sqlite.prepare("DELETE FROM scans WHERE id = ?").run(scan.id);
     sqlite.prepare("DELETE FROM accounts WHERE id = ?").run(target.id);
   })();
   res.sendStatus(204);
 });
-router.get("/admin/scans/:id/image", (req,res,next) => {
-  const scan = db.select().from(scans).where(eq(scans.id,String(req.params.id))).get();
-  const stream = scan?.imagePath && openStoredImage(scan.imagePath);
-  if (!stream || !scan?.imagePath) {res.sendStatus(404); return;}
-  res.type(extname(scan.imagePath)); res.setHeader("Cache-Control","private, no-store"); stream.on("error",next); stream.pipe(res);
+router.get("/admin/scans/:id/image", async (req,res,next) => {
+  try {
+    const scan = await findStoredScanForAdmin(String(req.params.id));
+    if (!scan?.imagePath) {res.sendStatus(404); return;}
+    res.setHeader("Cache-Control","private, no-store");
+    if (usesSupabaseScanStore()) {
+      const image = await downloadStoredImage(scan.imagePath);
+      if (!image) {res.sendStatus(404);return;}
+      res.type(scan.imageContentType ?? extname(scan.imagePath)).send(image); return;
+    }
+    const stream = openStoredImage(scan.imagePath);
+    if (!stream) {res.sendStatus(404);return;}
+    res.type(extname(scan.imagePath)); stream.on("error",next); stream.pipe(res);
+  } catch(error) {next(error);}
 });
 router.get("/admin/scans/:id/analysis", async (req,res,next) => {
-  const scan = db.select().from(scans).where(eq(scans.id,String(req.params.id))).get();
-  if (!scan?.imagePath) {res.sendStatus(404); return;}
-  try { const report = await analyzeScan(scan as Scan,true); if (!report) {res.sendStatus(404);return;} res.json(report); } catch(error) {next(error);}
+  try {
+    const scan = await findStoredScanForAdmin(String(req.params.id));
+    if (!scan?.imagePath) {res.sendStatus(404); return;}
+    const report = await analyzeScan(scan as StoredScan,true);
+    if (!report) {res.sendStatus(404);return;}
+    res.json(report);
+  } catch(error) {next(error);}
 });
 router.use("/messages",requireAccount);
 const thread: RequestHandler = (req,res,next) => {
