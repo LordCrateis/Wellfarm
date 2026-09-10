@@ -5,15 +5,24 @@ JPG/PNG, the website calls `POST /api/scans/:scanId/analysis`. The existing scan
 workflow is retained rather than introducing a second upload endpoint.
 
 The API invokes `.venv/Scripts/python.exe` on Windows (`.venv/bin/python` elsewhere).
-Set `PYTHON` to another interpreter if needed. Install `requirements-ml.txt` in that
-environment. No paid inference service or model download is used.
+Set `PYTHON` to another interpreter if needed. Production needs only the small
+`requirements-inference.txt` runtime; training and export use `requirements-ml.txt`.
+No paid inference service is used.
 
-The default run is `models/artifacts/wellfarm-v1/efficientnetv2-s-crop-heads-field-aug-v1`.
-`VISION_RUN_DIRECTORY` can point to another trusted crop-head run containing
-`best.pt`, `run_config.json`, and `label_map.json`. Checkpoints are trusted local
-files only. A process loads the checkpoint per uncached photo, uses evaluation
-preprocessing and the selected crop's head, and returns three scores. The API
-allows one inference at a time with a two-minute timeout.
+Production defaults to ONNX Runtime. The tracked release manifest identifies the
+portable model, its labels and its SHA-256 checksum. On first use the API downloads
+the model from the free GitHub release, verifies the checksum and caches it locally.
+`VISION_MODEL_URL`, `VISION_MODEL_SHA256`, `VISION_MODEL_PATH`,
+`VISION_MODEL_MANIFEST`, and `VISION_MODEL_CACHE_DIRECTORY` can override this.
+Only HTTPS downloads are accepted and an explicit local model must pass the same
+checksum. Run `npm run model:setup-inference` on the production host.
+
+Local development defaults to the existing PyTorch checkpoint so training remains
+convenient. Set `VISION_RUNTIME=onnx` to test the production path. To rebuild the
+portable artifact after training, run `npm run model:setup` and then
+`npm run model:export`. The exporter writes the ignored `.onnx` file and a tracked
+manifest, and refuses success unless ONNX Runtime agrees with PyTorch within the
+declared numerical tolerance.
 
 In dedicated Supabase mode, crop photos are private Storage objects and results
 are saved as JSONB with the Postgres scan record. The API downloads a temporary
@@ -31,6 +40,6 @@ validate decoding and resolution; this model cannot reliably reject unrelated
 images. The user must select the correct crop.
 
 Verification: build the API, then run
-`node services/vision/scripts/test_scan_integration.mjs` from the repository root.
+`npm run model:test-inference` from the repository root.
 It uses port 18081, a temporary database/upload directory, and a held-out cotton
 photo to test upload, prediction and retrieval. It does not modify user scans.

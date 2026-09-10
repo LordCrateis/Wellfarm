@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { promisify } from "node:util";
 import { downloadStoredImage, storedImagePath } from "../lib/uploads";
 import { type StoredScan, updateStoredScan, usesSupabaseScanStore } from "./scan-store";
+import { prepareVisionModel } from "./vision-model";
 
 const execute = promisify(execFile);
 function projectRoot() {
@@ -49,8 +50,24 @@ export async function analyzeScan(scan: StoredScan, savedOnly = false) {
   try {
     const root = projectRoot();
     const python = process.env.PYTHON ?? join(root, ".venv", process.platform === "win32" ? "Scripts/python.exe" : "bin/python");
-    const run = process.env.VISION_RUN_DIRECTORY ?? join(root, "models/artifacts/wellfarm-v1/efficientnetv2-s-crop-heads-field-aug-v1");
-    const { stdout } = await execute(python, [join(root, "services/vision/scripts/predict.py"), "--run-dir", run, "--image", image, "--crop", scan.crop], { timeout: 120000, windowsHide: true, maxBuffer: 1024 * 1024 });
+    const runtime = process.env.VISION_RUNTIME ?? (process.env.NODE_ENV === "production" ? "onnx" : "pytorch");
+    let predictionArguments: string[];
+    if (runtime === "onnx") {
+      const artifact = await prepareVisionModel(root);
+      predictionArguments = [
+        join(root, "services/vision/scripts/predict_onnx.py"),
+        "--model", artifact.model,
+        "--manifest", artifact.manifest,
+        "--image", image,
+        "--crop", scan.crop,
+      ];
+    } else if (runtime === "pytorch") {
+      const run = process.env.VISION_RUN_DIRECTORY ?? join(root, "models/artifacts/wellfarm-v1/efficientnetv2-s-crop-heads-field-aug-v1");
+      predictionArguments = [join(root, "services/vision/scripts/predict.py"), "--run-dir", run, "--image", image, "--crop", scan.crop];
+    } else {
+      throw new Error("VISION_RUNTIME must be either onnx or pytorch.");
+    }
+    const { stdout } = await execute(python, predictionArguments, { timeout: 120000, windowsHide: true, maxBuffer: 1024 * 1024 });
     const prediction = JSON.parse(stdout);
     const result = {
       mode: "model", crop: scan.crop, supported: true,
