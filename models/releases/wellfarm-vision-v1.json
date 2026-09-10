@@ -6,7 +6,7 @@
   "file": "wellfarm-vision-v1.onnx",
   "bytes": 80836336,
   "sha256": "e998e14f1afcaf233849ac1ef3410512859d7a794e399591ba80c4982ecd2648",
-  "download_url": "https://github.com/LordCrateis/Wellfarm/releases/download/model-v1/wellfarm-vision-v1.onnx",
+  "download_url": "https://api.github.com/repos/LordCrateis/Wellfarm/releases/assets/555599275",
   "input": {
     "name": "images",
     "image_size": 224,

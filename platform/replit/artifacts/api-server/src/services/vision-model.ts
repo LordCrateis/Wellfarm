@@ -55,7 +55,15 @@ export function prepareVisionModel(root: string) {
     const temporary = `${modelPath}.${process.pid}.tmp`;
     await rm(temporary, { force: true });
     try {
-      const response = await fetch(url, { redirect: "follow" });
+      const token = process.env.VISION_MODEL_AUTH_TOKEN?.trim();
+      const response = await fetch(url, {
+        redirect: "follow",
+        headers: {
+          Accept: "application/octet-stream",
+          "X-GitHub-Api-Version": "2022-11-28",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
       if (!response.ok || !response.body) throw new Error(`Model download failed (${response.status}).`);
       const advertisedSize = Number(response.headers.get("content-length") || 0);
       if (advertisedSize > maximumModelBytes) throw new Error("Model download is unexpectedly large.");

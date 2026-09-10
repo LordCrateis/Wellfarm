@@ -100,7 +100,7 @@ def export(run_dir: Path, model_path: Path, manifest_path: Path) -> dict:
         "file": model_path.name,
         "bytes": model_path.stat().st_size,
         "sha256": sha256(model_path),
-        "download_url": "https://github.com/LordCrateis/Wellfarm/releases/download/model-v1/wellfarm-vision-v1.onnx",
+        "download_url": "https://api.github.com/repos/LordCrateis/Wellfarm/releases/assets/555599275",
         "input": {
             "name": "images",
             "image_size": image_size,

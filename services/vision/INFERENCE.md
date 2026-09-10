@@ -11,7 +11,10 @@ No paid inference service is used.
 
 Production defaults to ONNX Runtime. The tracked release manifest identifies the
 portable model, its labels and its SHA-256 checksum. On first use the API downloads
-the model from the free GitHub release, verifies the checksum and caches it locally.
+the model from Wellfarm's private GitHub release, verifies the checksum and caches
+it locally. Set the server-only `VISION_MODEL_AUTH_TOKEN` to a fine-grained GitHub
+token with read-only Contents access to this repository. Neither training data nor
+model weights need to be made public.
 `VISION_MODEL_URL`, `VISION_MODEL_SHA256`, `VISION_MODEL_PATH`,
 `VISION_MODEL_MANIFEST`, and `VISION_MODEL_CACHE_DIRECTORY` can override this.
 Only HTTPS downloads are accepted and an explicit local model must pass the same
