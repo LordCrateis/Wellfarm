@@ -29,6 +29,17 @@ app.use(
     },
   }),
 );
+const allowedOrigins = (process.env.APP_ORIGINS ?? process.env.APP_ORIGIN ?? "http://localhost:5173")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error("Request origin is not allowed."));
+  },
+  credentials: true,
+}));
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   const allowed = [process.env.APP_ORIGIN ?? "http://localhost:5173", `http://${req.get("host")}`, `https://${req.get("host")}`];

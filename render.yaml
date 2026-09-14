@@ -1,0 +1,59 @@
+services:
+  - type: web
+    name: wellfarm-api
+    runtime: node
+    plan: free
+    buildCommand: >-
+      corepack enable && cd platform/replit && pnpm install --frozen-lockfile &&
+      pnpm --filter @workspace/api-server run build && cd ../../ &&
+      python3 -m venv .venv &&
+      .venv/bin/pip install --no-cache-dir -r services/vision/requirements-inference.txt
+    startCommand: node platform/replit/artifacts/api-server/dist/index.mjs
+    healthCheckPath: /api/healthz
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "10000"
+      - key: VISION_RUNTIME
+        value: onnx
+      - key: AUTH_PROVIDER
+        sync: false
+      - key: SUPABASE_PROJECT_MODE
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: VISION_MODEL_AUTH_TOKEN
+        sync: false
+      - key: APP_ORIGIN
+        sync: false
+      - key: APP_ORIGINS
+        sync: false
+      - key: API_PUBLIC_URL
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: GOOGLE_AUTH_ENABLED
+        sync: false
+      - key: TURNSTILE_SITE_KEY
+        sync: false
+      - key: TURNSTILE_SECRET_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: AUTH_EMAIL_FROM
+        sync: false
+      - key: AUTH_EMAIL_SENDER_NAME
+        sync: false
+      - key: WELLFARM_ADMIN_EMAIL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-3.5-flash-lite
