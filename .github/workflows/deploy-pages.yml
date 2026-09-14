@@ -34,7 +34,7 @@ jobs:
         env:
           NODE_ENV: production
           PORT: 5173
-          BASE_PATH: /Wellfarm/
+          BASE_PATH: /
           VITE_API_URL: ${{ vars.VITE_API_URL }}
       - name: Add SPA route fallback
         run: cp platform/replit/artifacts/wellfarm/dist/public/index.html platform/replit/artifacts/wellfarm/dist/public/404.html
