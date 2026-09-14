@@ -12,8 +12,9 @@ import { listOwnerScans, usesSupabaseScanStore } from "../services/scan-store";
 
 const derive = promisify(scrypt);
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
-const cookieOptions = { httpOnly: true, sameSite: "strict" as const, secure: process.env.NODE_ENV === "production", path: "/" };
-const frontendUrl = () => process.env.FRONTEND_URL ?? process.env.APP_ORIGIN ?? "http://localhost:5173";
+const production = process.env.NODE_ENV === "production";
+const cookieOptions = { httpOnly: true, sameSite: "strict" as const, secure: production, path: "/" };
+const frontendUrl = () => production ? "https://wellfarm.shivambuilds.dev" : (process.env.FRONTEND_URL ?? process.env.APP_ORIGIN ?? "http://localhost:5173");
 export type Account = {id: string; email: string; password_hash: string; profile: string; role?: string; state?: string; district?: string; supabase_id?: string};
 const router = Router();
 const attempts = new Map<string, {count: number; until: number}>();
@@ -182,7 +183,7 @@ router.post("/auth/resend-verification",limit,async(req,res) => {
 });
 router.get("/auth/google",limit,async(req,res) => {
   if(!usesSupabase() || process.env.GOOGLE_AUTH_ENABLED !== "true") {res.status(503).json({error:{message:"Google sign-in has not been configured."}});return;}
-  try {const {data,error}=await supabase(req,res).auth.signInWithOAuth({provider:"google",options:{redirectTo:`${process.env.API_PUBLIC_URL ?? process.env.APP_ORIGIN ?? "http://localhost:5173"}/api/auth/callback`,skipBrowserRedirect:true}});if(error || !data.url) throw error;res.redirect(data.url);}catch {res.redirect(`${frontendUrl()}/login?error=google`);}
+  try {const callbackOrigin = production ? "https://api.wellfarm.shivambuilds.dev" : (process.env.API_PUBLIC_URL ?? process.env.APP_ORIGIN ?? "http://localhost:5173");const {data,error}=await supabase(req,res).auth.signInWithOAuth({provider:"google",options:{redirectTo:`${callbackOrigin}/api/auth/callback`,skipBrowserRedirect:true}});if(error || !data.url) throw error;res.redirect(data.url);}catch {res.redirect(`${frontendUrl()}/login?error=google`);}
 });
 router.get("/auth/callback",limit,async(req,res) => {
   if(!usesSupabase() || typeof req.query.code !== "string") {res.redirect(`${frontendUrl()}/login?error=google`);return;}
