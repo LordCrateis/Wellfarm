@@ -3,7 +3,8 @@ import { setBaseUrl } from "@workspace/api-client-react";
 // GitHub Pages serves the static UI on one origin while the API runs on Render.
 // Keep this rewrite in one place so existing relative `/api/...` calls continue
 // to work locally and receive cookies cross-origin in production.
-const configuredApiOrigin = (import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, "");
+const configuredApiOrigin = ((import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, "")
+  || (import.meta.env.PROD ? "https://wellfarm-api.onrender.com" : undefined));
 
 export function apiUrl(path: string) {
   if (!configuredApiOrigin || !path.startsWith("/api/")) return path;
