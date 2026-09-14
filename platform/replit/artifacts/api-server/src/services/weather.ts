@@ -90,6 +90,14 @@ function asCached(reading: WeatherReading): WeatherReading {
   return { ...reading, freshness: "cached" };
 }
 
+function describeError(error: unknown): string {
+  if (error instanceof Error) {
+    return `${error.name}: ${error.message}`;
+  }
+
+  return String(error);
+}
+
 function requestWithNodeHttps(url: URL): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const request = httpsGet(
@@ -165,25 +173,37 @@ export async function getCurrentWeather(
   url.searchParams.set("forecast_days", "1");
 
   try {
-    let response: Response | undefined;
-    let lastError: unknown;
+    let data: OpenMeteoResponse | undefined;
+    let fetchError: unknown;
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
-        response = await fetch(url, {
+        const response = await fetch(url, {
           headers: { Accept: "application/json" },
           signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         });
-        if (response.ok) break;
-        lastError = new Error(`Open-Meteo returned ${response.status}`);
+        if (!response.ok) {
+          throw new Error(`Open-Meteo returned ${response.status}`);
+        }
+
+        data = parseOpenMeteoResponse(await response.json());
+        break;
       } catch (error) {
-        lastError = error;
+        fetchError = error;
       }
     }
 
-    const payload = response?.ok
-      ? await response.json()
-      : await requestWithNodeHttps(url).catch(() => { throw lastError ?? new WeatherUnavailableError(); });
-    const data = parseOpenMeteoResponse(payload);
+    if (!data) {
+      try {
+        data = parseOpenMeteoResponse(await requestWithNodeHttps(url));
+      } catch (httpsError) {
+        console.error("Open-Meteo weather request failed", {
+          fetch: describeError(fetchError),
+          https: describeError(httpsError),
+        });
+        throw new WeatherUnavailableError();
+      }
+    }
+
     const reading: WeatherReading = {
       latitude: data.latitude,
       longitude: data.longitude,
