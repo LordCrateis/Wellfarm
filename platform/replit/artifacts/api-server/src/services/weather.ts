@@ -1,6 +1,8 @@
 import { get as httpsGet } from "node:https";
 
 const OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast";
+const MET_NORWAY_URL = "https://api.met.no/weatherapi/locationforecast/2.0/compact";
+const WEATHER_USER_AGENT = "Wellfarm/1.0 (https://wellfarm.shivambuilds.dev)";
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const STALE_TTL_MS = 6 * 60 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 15_000;
@@ -16,7 +18,7 @@ export interface WeatherReading {
   isDay: boolean;
   observedAt: Date;
   timezone: string;
-  source: "open-meteo";
+  source: "open-meteo" | "met-norway";
   freshness: "live" | "cached";
 }
 
@@ -40,6 +42,28 @@ interface OpenMeteoResponse {
   longitude: number;
   timezone: string;
   current: OpenMeteoCurrent;
+}
+
+interface MetNorwayResponse {
+  geometry?: { coordinates?: unknown[] };
+  properties?: {
+    timeseries?: Array<{
+      time?: string;
+      data?: {
+        instant?: {
+          details?: {
+            air_temperature?: number;
+            relative_humidity?: number;
+            wind_speed?: number;
+          };
+        };
+        next_1_hours?: {
+          summary?: { symbol_code?: string };
+          details?: { precipitation_amount?: number };
+        };
+      };
+    }>;
+  };
 }
 
 const cache = new Map<string, CacheEntry>();
@@ -98,20 +122,20 @@ function describeError(error: unknown): string {
   return String(error);
 }
 
-function requestWithNodeHttps(url: URL): Promise<unknown> {
+function requestWithNodeHttps(url: URL, provider: string): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const request = httpsGet(
       url,
       {
         headers: {
           Accept: "application/json",
-          "User-Agent": "Wellfarm/1.0 (https://wellfarm.shivambuilds.dev)",
+          "User-Agent": WEATHER_USER_AGENT,
         },
       },
       (response) => {
         if (response.statusCode !== 200) {
           response.resume();
-          reject(new Error(`Open-Meteo returned ${response.statusCode ?? "no status"}`));
+          reject(new Error(`${provider} returned ${response.statusCode ?? "no status"}`));
           return;
         }
 
@@ -120,7 +144,7 @@ function requestWithNodeHttps(url: URL): Promise<unknown> {
         response.on("data", (chunk: Buffer) => {
           size += chunk.length;
           if (size > 1_000_000) {
-            request.destroy(new Error("Open-Meteo response was too large"));
+            request.destroy(new Error(`${provider} response was too large`));
             return;
           }
           chunks.push(chunk);
@@ -134,9 +158,97 @@ function requestWithNodeHttps(url: URL): Promise<unknown> {
         });
       },
     );
-    request.setTimeout(REQUEST_TIMEOUT_MS, () => request.destroy(new Error("Open-Meteo request timed out")));
+    request.setTimeout(REQUEST_TIMEOUT_MS, () => request.destroy(new Error(`${provider} request timed out`)));
     request.on("error", reject);
   });
+}
+
+function metNorwayWeatherCode(symbolCode: string): number {
+  if (symbolCode.includes("thunder")) return 95;
+  if (symbolCode.includes("snow") || symbolCode.includes("sleet")) return 71;
+  if (symbolCode.includes("heavyrain")) return 65;
+  if (symbolCode.includes("rain")) return 61;
+  if (symbolCode.includes("fog")) return 45;
+  if (symbolCode.includes("cloudy")) return 3;
+  if (symbolCode.includes("fair")) return 1;
+  return 0;
+}
+
+function parseMetNorwayResponse(
+  value: unknown,
+  requestedLatitude: number,
+  requestedLongitude: number,
+): WeatherReading {
+  if (!value || typeof value !== "object") throw new WeatherUnavailableError();
+
+  const response = value as MetNorwayResponse;
+  const point = response.properties?.timeseries?.[0];
+  const instant = point?.data?.instant?.details;
+  const nextHour = point?.data?.next_1_hours;
+  const symbolCode = nextHour?.summary?.symbol_code ?? "";
+  const observedAt = point?.time ? new Date(point.time) : new Date(Number.NaN);
+  const precipitation = nextHour?.details?.precipitation_amount ?? 0;
+
+  if (
+    !instant ||
+    !isFiniteNumber(instant.air_temperature) ||
+    !isFiniteNumber(instant.relative_humidity) ||
+    !isFiniteNumber(instant.wind_speed) ||
+    !isFiniteNumber(precipitation) ||
+    Number.isNaN(observedAt.getTime())
+  ) {
+    throw new WeatherUnavailableError();
+  }
+
+  return {
+    latitude: requestedLatitude,
+    longitude: requestedLongitude,
+    temperatureCelsius: instant.air_temperature,
+    relativeHumidityPercentage: instant.relative_humidity,
+    precipitationMm: precipitation,
+    windSpeedKph: instant.wind_speed * 3.6,
+    weatherCode: metNorwayWeatherCode(symbolCode),
+    isDay: symbolCode.endsWith("_day"),
+    observedAt,
+    timezone: "UTC",
+    source: "met-norway",
+    freshness: "live",
+  };
+}
+
+async function getMetNorwayWeather(
+  latitude: number,
+  longitude: number,
+): Promise<WeatherReading> {
+  const url = new URL(MET_NORWAY_URL);
+  url.searchParams.set("lat", latitude.toFixed(4));
+  url.searchParams.set("lon", longitude.toFixed(4));
+
+  let fetchError: unknown;
+  try {
+    const response = await fetch(url, {
+      headers: { Accept: "application/json", "User-Agent": WEATHER_USER_AGENT },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+    if (!response.ok) throw new Error(`MET Norway returned ${response.status}`);
+    return parseMetNorwayResponse(await response.json(), latitude, longitude);
+  } catch (error) {
+    fetchError = error;
+  }
+
+  try {
+    return parseMetNorwayResponse(
+      await requestWithNodeHttps(url, "MET Norway"),
+      latitude,
+      longitude,
+    );
+  } catch (httpsError) {
+    console.error("MET Norway weather request failed", {
+      fetch: describeError(fetchError),
+      https: describeError(httpsError),
+    });
+    throw new WeatherUnavailableError();
+  }
 }
 
 export async function getCurrentWeather(
@@ -194,13 +306,15 @@ export async function getCurrentWeather(
 
     if (!data) {
       try {
-        data = parseOpenMeteoResponse(await requestWithNodeHttps(url));
+        data = parseOpenMeteoResponse(await requestWithNodeHttps(url, "Open-Meteo"));
       } catch (httpsError) {
-        console.error("Open-Meteo weather request failed", {
+        console.warn("Open-Meteo unavailable; using MET Norway", {
           fetch: describeError(fetchError),
           https: describeError(httpsError),
         });
-        throw new WeatherUnavailableError();
+        const reading = await getMetNorwayWeather(latitude, longitude);
+        cache.set(key, { reading, fetchedAt: now });
+        return reading;
       }
     }
 

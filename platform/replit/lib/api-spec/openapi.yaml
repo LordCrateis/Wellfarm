@@ -324,7 +324,7 @@ components:
           type: string
         source:
           type: string
-          enum: [open-meteo]
+          enum: [open-meteo, met-norway]
         freshness:
           type: string
           enum: [live, cached]

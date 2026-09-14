@@ -10,4 +10,5 @@ export type WeatherSource = (typeof WeatherSource)[keyof typeof WeatherSource];
 
 export const WeatherSource = {
   "open-meteo": "open-meteo",
+  "met-norway": "met-norway",
 } as const;

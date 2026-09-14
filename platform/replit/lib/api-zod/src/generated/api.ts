@@ -364,6 +364,6 @@ export const GetWeatherResponse = zod.object({
   isDay: zod.boolean(),
   observedAt: zod.coerce.date(),
   timezone: zod.string(),
-  source: zod.enum(["open-meteo"]),
+  source: zod.enum(["open-meteo", "met-norway"]),
   freshness: zod.enum(["live", "cached"]),
 });

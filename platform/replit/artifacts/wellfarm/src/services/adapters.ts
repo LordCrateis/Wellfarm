@@ -38,7 +38,7 @@ export const weatherService = {
         humidity: `${Math.round(current.relativeHumidityPercentage)}%`,
         rain: `${current.precipitationMm} mm`,
         wind: `${Math.round(current.windSpeedKph)} km/h`,
-        source: "Open-Meteo",
+        source: current.source === "met-norway" ? "MET Norway" : "Open-Meteo",
         updated: new Date(current.observedAt).toLocaleString([], {
           hour: "2-digit",
           minute: "2-digit",
