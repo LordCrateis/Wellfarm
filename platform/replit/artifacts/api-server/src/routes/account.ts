@@ -13,6 +13,7 @@ import { listOwnerScans, usesSupabaseScanStore } from "../services/scan-store";
 const derive = promisify(scrypt);
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
 const cookieOptions = { httpOnly: true, sameSite: "strict" as const, secure: process.env.NODE_ENV === "production", path: "/" };
+const frontendUrl = () => process.env.FRONTEND_URL ?? process.env.APP_ORIGIN ?? "http://localhost:5173";
 export type Account = {id: string; email: string; password_hash: string; profile: string; role?: string; state?: string; district?: string; supabase_id?: string};
 const router = Router();
 const attempts = new Map<string, {count: number; until: number}>();
@@ -181,16 +182,16 @@ router.post("/auth/resend-verification",limit,async(req,res) => {
 });
 router.get("/auth/google",limit,async(req,res) => {
   if(!usesSupabase() || process.env.GOOGLE_AUTH_ENABLED !== "true") {res.status(503).json({error:{message:"Google sign-in has not been configured."}});return;}
-  try {const {data,error}=await supabase(req,res).auth.signInWithOAuth({provider:"google",options:{redirectTo:`${process.env.API_PUBLIC_URL ?? process.env.APP_ORIGIN ?? "http://localhost:5173"}/api/auth/callback`,skipBrowserRedirect:true}});if(error || !data.url) throw error;res.redirect(data.url);}catch {res.redirect(`${process.env.APP_ORIGIN ?? "http://localhost:5173"}/login?error=google`);}
+  try {const {data,error}=await supabase(req,res).auth.signInWithOAuth({provider:"google",options:{redirectTo:`${process.env.API_PUBLIC_URL ?? process.env.APP_ORIGIN ?? "http://localhost:5173"}/api/auth/callback`,skipBrowserRedirect:true}});if(error || !data.url) throw error;res.redirect(data.url);}catch {res.redirect(`${frontendUrl()}/login?error=google`);}
 });
 router.get("/auth/callback",limit,async(req,res) => {
-  if(!usesSupabase() || typeof req.query.code !== "string") {res.redirect(`${process.env.APP_ORIGIN ?? "http://localhost:5173"}/login?error=google`);return;}
+  if(!usesSupabase() || typeof req.query.code !== "string") {res.redirect(`${frontendUrl()}/login?error=google`);return;}
   try {const {data,error}=await supabase(req,res).auth.exchangeCodeForSession(req.query.code);if(error || !data.session || !data.user) throw error;const account=syncSupabaseUser(data.user) as Account;
     // Reuse session creation, but send a redirect instead of JSON for the callback.
     const value=randomBytes(32).toString("hex"); const lifetime=Math.min(data.session.expires_in*1000,3600000);
     sqlite.prepare("INSERT INTO sessions (token_hash,account_id,expires_at,access_token,refresh_token) VALUES (?,?,?,?,?)").run(hash(value),account.id,Date.now()+lifetime,data.session.access_token,data.session.refresh_token);
     const savedProfile=JSON.parse(account.profile) as {name?:string};
-    res.cookie("wellfarm_session",value,{...cookieOptions,maxAge:lifetime});res.redirect(`${process.env.APP_ORIGIN ?? "http://localhost:5173"}${savedProfile.name ? "/farmer" : "/onboarding"}`);
-  }catch {res.redirect(`${process.env.APP_ORIGIN ?? "http://localhost:5173"}/login?error=google`);}
+    res.cookie("wellfarm_session",value,{...cookieOptions,maxAge:lifetime});res.redirect(`${frontendUrl()}${savedProfile.name ? "/farmer" : "/onboarding"}`);
+  }catch {res.redirect(`${frontendUrl()}/login?error=google`);}
 });
 export default router;
