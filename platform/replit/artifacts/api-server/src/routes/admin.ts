@@ -83,7 +83,10 @@ router.get("/admin/scans/:id/analysis", async (req,res,next) => {
 });
 router.use("/messages",requireAccount);
 const thread: RequestHandler = (req,res,next) => {
-  const id = res.locals.account.role === "admin" ? String(req.query.userId ?? "") : res.locals.account.id;
+  const requestedUserId = typeof req.query.userId === "string" ? req.query.userId.trim() : "";
+  const id = res.locals.account.role === "admin" && requestedUserId
+    ? requestedUserId
+    : res.locals.account.id;
   if (!id || !sqlite.prepare("SELECT 1 FROM accounts WHERE id = ?").get(id)) {res.sendStatus(404);return;}
   res.locals.thread = id; next();
 };
