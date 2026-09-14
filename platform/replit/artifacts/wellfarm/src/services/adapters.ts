@@ -141,7 +141,7 @@ export const requestLocation = (): Promise<BrowserLocation> =>
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(
+    const locate = (attempt: number) => navigator.geolocation.getCurrentPosition(
       async ({ coords }) => {
         const place = await getApproximateLocationLabel(
           coords.latitude,
@@ -153,18 +153,16 @@ export const requestLocation = (): Promise<BrowserLocation> =>
           ...place,
         });
       },
-      (error) =>
-        reject(
-          new Error(
-            error.code === 1
-              ? "denied"
-              : error.code === 2
-                ? "unavailable"
-                : "timeout",
-          ),
-        ),
+      (error) => {
+        if (attempt === 0 && error.code !== 1) {
+          locate(1);
+          return;
+        }
+        reject(new Error(error.code === 1 ? "denied" : error.code === 2 ? "unavailable" : "timeout"));
+      },
       { enableHighAccuracy: false, timeout: 15000, maximumAge: 300000 },
     );
+    locate(0);
   });
 
 
