@@ -4,7 +4,7 @@ import { setBaseUrl } from "@workspace/api-client-react";
 // Keep this rewrite in one place so existing relative `/api/...` calls continue
 // to work locally and receive cookies cross-origin in production.
 const configuredApiOrigin = ((import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, "")
-  || (import.meta.env.PROD ? "https://wellfarm-api.onrender.com" : undefined));
+  || (import.meta.env.PROD ? "https://api.wellfarm.shivambuilds.dev" : undefined));
 
 export function apiUrl(path: string) {
   if (!configuredApiOrigin || !path.startsWith("/api/")) return path;
