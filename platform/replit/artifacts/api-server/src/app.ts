@@ -29,9 +29,12 @@ app.use(
     },
   }),
 );
+const normalizeOrigin = (value: string) => {
+  try { return new URL(value.trim()).origin; } catch { return value.trim().replace(/\/$/, ""); }
+};
 const allowedOrigins = (process.env.APP_ORIGINS ?? process.env.APP_ORIGIN ?? "http://localhost:5173")
   .split(",")
-  .map((origin) => origin.trim())
+  .map(normalizeOrigin)
   .filter(Boolean);
 app.use(cors({
   origin: (origin, callback) => {
@@ -42,7 +45,7 @@ app.use(cors({
 }));
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  const allowed = [process.env.APP_ORIGIN ?? "http://localhost:5173", `http://${req.get("host")}`, `https://${req.get("host")}`];
+  const allowed = [process.env.APP_ORIGIN ?? "http://localhost:5173", `http://${req.get("host")}`, `https://${req.get("host")}`].map(normalizeOrigin);
   if (!["GET", "HEAD", "OPTIONS"].includes(req.method) && (req.headers["sec-fetch-site"] === "cross-site" || (origin && !allowed.includes(origin)))) {
     res.status(403).json({error: {message: "Request origin is not allowed."}}); return;
   }
