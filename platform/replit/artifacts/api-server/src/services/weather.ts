@@ -1,3 +1,5 @@
+import { get as httpsGet } from "node:https";
+
 const OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast";
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const STALE_TTL_MS = 6 * 60 * 60 * 1000;
@@ -88,6 +90,47 @@ function asCached(reading: WeatherReading): WeatherReading {
   return { ...reading, freshness: "cached" };
 }
 
+function requestWithNodeHttps(url: URL): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    const request = httpsGet(
+      url,
+      {
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "Wellfarm/1.0 (https://wellfarm.shivambuilds.dev)",
+        },
+      },
+      (response) => {
+        if (response.statusCode !== 200) {
+          response.resume();
+          reject(new Error(`Open-Meteo returned ${response.statusCode ?? "no status"}`));
+          return;
+        }
+
+        const chunks: Buffer[] = [];
+        let size = 0;
+        response.on("data", (chunk: Buffer) => {
+          size += chunk.length;
+          if (size > 1_000_000) {
+            request.destroy(new Error("Open-Meteo response was too large"));
+            return;
+          }
+          chunks.push(chunk);
+        });
+        response.on("end", () => {
+          try {
+            resolve(JSON.parse(Buffer.concat(chunks).toString("utf8")));
+          } catch (error) {
+            reject(error);
+          }
+        });
+      },
+    );
+    request.setTimeout(REQUEST_TIMEOUT_MS, () => request.destroy(new Error("Open-Meteo request timed out")));
+    request.on("error", reject);
+  });
+}
+
 export async function getCurrentWeather(
   latitude: number,
   longitude: number,
@@ -137,11 +180,10 @@ export async function getCurrentWeather(
       }
     }
 
-    if (!response?.ok) {
-      throw lastError ?? new WeatherUnavailableError();
-    }
-
-    const data = parseOpenMeteoResponse(await response.json());
+    const payload = response?.ok
+      ? await response.json()
+      : await requestWithNodeHttps(url).catch(() => { throw lastError ?? new WeatherUnavailableError(); });
+    const data = parseOpenMeteoResponse(payload);
     const reading: WeatherReading = {
       latitude: data.latitude,
       longitude: data.longitude,
