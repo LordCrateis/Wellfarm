@@ -1,6 +1,7 @@
 const OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast";
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const STALE_TTL_MS = 6 * 60 * 60 * 1000;
+const REQUEST_TIMEOUT_MS = 15_000;
 
 export interface WeatherReading {
   latitude: number;
@@ -121,13 +122,23 @@ export async function getCurrentWeather(
   url.searchParams.set("forecast_days", "1");
 
   try {
-    const response = await fetch(url, {
-      headers: { Accept: "application/json" },
-      signal: AbortSignal.timeout(5_000),
-    });
+    let response: Response | undefined;
+    let lastError: unknown;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        response = await fetch(url, {
+          headers: { Accept: "application/json" },
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        });
+        if (response.ok) break;
+        lastError = new Error(`Open-Meteo returned ${response.status}`);
+      } catch (error) {
+        lastError = error;
+      }
+    }
 
-    if (!response.ok) {
-      throw new WeatherUnavailableError();
+    if (!response?.ok) {
+      throw lastError ?? new WeatherUnavailableError();
     }
 
     const data = parseOpenMeteoResponse(await response.json());

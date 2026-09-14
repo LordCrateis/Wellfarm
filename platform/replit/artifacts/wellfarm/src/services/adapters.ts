@@ -163,7 +163,7 @@ export const requestLocation = (): Promise<BrowserLocation> =>
                 : "timeout",
           ),
         ),
-      { enableHighAccuracy: false, timeout: 5000, maximumAge: 300000 },
+      { enableHighAccuracy: false, timeout: 15000, maximumAge: 300000 },
     );
   });
 
