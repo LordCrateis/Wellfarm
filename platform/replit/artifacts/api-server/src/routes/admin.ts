@@ -30,14 +30,20 @@ router.get("/admin/users", async (req,res,next) => {
       const profilesResult = await client.from("wellfarm_profiles").select("*");
       if (profilesResult.error) throw profilesResult.error;
       const profiles = new Map((profilesResult.data ?? []).map(row => [row.user_id, row]));
+      const summariesResult = await client.from("wellfarm_conversation_summaries").select("account_id,message_count,latest_message_at,farmer_message_count,latest_farmer_message_at");
+      if (summariesResult.error) throw summariesResult.error;
+      const summaries = new Map((summariesResult.data ?? []).map(row => [row.account_id, row]));
       const adminEmail = process.env.WELLFARM_ADMIN_EMAIL?.trim().toLowerCase();
       const rows = users.map(user => {
         const stored = profiles.get(user.id);
+        const summary = summaries.get(user.id);
         const metadata = user.user_metadata ?? {};
         const fallbackName = typeof metadata.full_name === "string" ? metadata.full_name : typeof metadata.name === "string" ? metadata.name : "";
         return {
           id: user.id, email: user.email ?? "", role: user.email?.toLowerCase() === adminEmail ? "admin" : "farmer",
           state: stored?.state ?? "", district: stored?.district ?? "",
+          messageCount: Number(summary?.message_count ?? 0), latestMessageAt: summary?.latest_message_at ?? null,
+          farmerMessageCount: Number(summary?.farmer_message_count ?? 0), latestFarmerMessageAt: summary?.latest_farmer_message_at ?? null,
           profile: stored ? {
             firstName: stored.first_name, lastName: stored.last_name, name: stored.display_name,
             city: stored.city, farm: stored.farm, crops: stored.crops ?? [], workspace: stored.workspace,
@@ -45,8 +51,10 @@ router.get("/admin/users", async (req,res,next) => {
           } : {name: fallbackName, farm: "", crops: [], workspace: "farmer", notifications: true},
         };
       }).filter(row => (!state || row.state === state) && (!district || row.district === district))
-        .sort((a,b) => a.state.localeCompare(b.state) || a.district.localeCompare(b.district) || a.email.localeCompare(b.email));
-      res.json(rows); return;
+        .sort((a,b) => (Date.parse(b.latestFarmerMessageAt ?? "") || 0) - (Date.parse(a.latestFarmerMessageAt ?? "") || 0)
+          || (Date.parse(b.latestMessageAt ?? "") || 0) - (Date.parse(a.latestMessageAt ?? "") || 0)
+          || a.state.localeCompare(b.state) || a.district.localeCompare(b.district) || a.email.localeCompare(b.email));
+      res.setHeader("Cache-Control", "private, no-store").json(rows); return;
     }
     const rows = sqlite.prepare("SELECT id,email,profile,state,district,role FROM accounts WHERE (? = '' OR state = ?) AND (? = '' OR district = ?) ORDER BY state,district,email").all(state,state,district,district) as {profile:string}[];
     res.json(rows.map(row => ({...row,profile:JSON.parse(row.profile)})));
@@ -150,12 +158,12 @@ router.get("/messages",thread,async(_req,res,next) => {
       const result = await supabaseAdmin().from("wellfarm_messages").select("id,body,created_at,sender_id")
         .eq("account_id", res.locals.thread).order("created_at", {ascending:true}).order("id", {ascending:true}).limit(1000);
       if (result.error) throw result.error;
-      res.json((result.data ?? []).map(row => ({
+      res.setHeader("Cache-Control", "private, no-store").json((result.data ?? []).map(row => ({
         ...row, created_at: new Date(row.created_at).getTime(),
         sender_role: row.sender_id === res.locals.thread ? "farmer" : "admin",
       }))); return;
     }
-    res.json(sqlite.prepare("SELECT messages.id, body, created_at, sender_id, accounts.role AS sender_role FROM messages JOIN accounts ON sender_id = accounts.id WHERE account_id = ? ORDER BY messages.created_at,messages.id LIMIT 1000").all(res.locals.thread));
+    res.setHeader("Cache-Control", "private, no-store").json(sqlite.prepare("SELECT messages.id, body, created_at, sender_id, accounts.role AS sender_role FROM messages JOIN accounts ON sender_id = accounts.id WHERE account_id = ? ORDER BY messages.created_at,messages.id LIMIT 1000").all(res.locals.thread));
   } catch(error) {next(error);}
 });
 router.post("/messages",thread,async(req,res,next) => {
