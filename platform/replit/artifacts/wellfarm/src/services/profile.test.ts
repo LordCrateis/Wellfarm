@@ -15,9 +15,11 @@ test("avatars handle blank, single and multiple names", () => {
   assert.equal(profileInitials("Shivam"),"S");
   assert.equal(profileInitials("  Asha   Patil "),"AP");
 });
-test("profile photos accept bounded JPEG data and reject remote or executable URLs", () => {
+test("profile photos accept bounded JPEG data or HTTPS URLs and reject unsafe URLs", () => {
   assert.equal(normalizeProfile({avatar:"data:image/jpeg;base64,YWJj"}).avatar,"data:image/jpeg;base64,YWJj");
-  for (const avatar of ["https://example.com/a.jpg", "javascript:alert(1)", "data:image/jpeg;base64," + "A".repeat(400000)]) {
+  assert.equal(normalizeProfile({avatar:"https://example.com/avatar.jpg"}).avatar,"https://example.com/avatar.jpg");
+  assert.equal(normalizeProfile({avatar:"http://example.com/avatar.jpg"}).avatar,undefined);
+  for (const avatar of ["javascript:alert(1)", "data:image/jpeg;base64," + "A".repeat(400000)]) {
     assert.equal(normalizeProfile({avatar}).avatar, undefined);
   }
 });

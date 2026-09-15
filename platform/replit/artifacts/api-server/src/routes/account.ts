@@ -4,7 +4,7 @@ import { promisify } from "node:util";
 import { sqlite } from "@workspace/db";
 import { removeRemoteImages, removeStoredImage } from "../lib/uploads";
 import { isVisionBusy } from "../services/vision";
-import { supabase, supabaseAdmin, syncSupabaseUser, usesSupabase } from "../services/supabase-auth";
+import { saveSupabaseProfile, supabase, supabaseAdmin, syncSupabaseUser, usesSupabase } from "../services/supabase-auth";
 import type { Session } from "@supabase/supabase-js";
 import { isSharedAuthProject } from "../services/auth-project-policy";
 import { TurnstileConfigurationError, verifyTurnstileToken } from "../services/turnstile";
@@ -96,7 +96,7 @@ router.post("/auth/login", limit, async (req, res) => {
       if (!await verifyTurnstileToken(req.body.captchaToken, req.ip)) {res.status(400).json({error:{message:"CAPTCHA verification failed. Please try again."}});return;}
       const {data,error} = await supabase(req,res).auth.signInWithPassword({email,password});
       if(error || !data.session) {res.status(401).json({error:{message:"Email or password is incorrect, or verification is incomplete."}});return;}
-      startSession(res,syncSupabaseUser(data.user) as Account,data.session);return;
+      startSession(res,await syncSupabaseUser(data.user) as Account,data.session);return;
     } catch(error) {res.status(503).json({error:{message:error instanceof TurnstileConfigurationError ? "CAPTCHA is not configured correctly." : "Sign-in unavailable."}});return;}
   }
   const account = sqlite.prepare("SELECT * FROM accounts WHERE email = ?").get(email) as Account | undefined;
@@ -119,7 +119,7 @@ router.get("/auth/me", requireAccount, (_req, res) => {
   const account = res.locals.account as Account;
   res.json({id: account.id, email: account.email, role: account.role ?? "farmer", profile: {...JSON.parse(account.profile), state: account.state ?? "", district: account.district ?? ""}});
 });
-router.put("/account/profile", requireAccount, (req, res) => {
+router.put("/account/profile", requireAccount, async (req, res, next) => {
   const input = req.body;
   const profile = {
     firstName: typeof input.firstName === "string" ? input.firstName.trim().slice(0,50) : "",
@@ -130,12 +130,21 @@ router.put("/account/profile", requireAccount, (req, res) => {
     crops: Array.isArray(input.crops) ? input.crops.filter((crop: unknown) => typeof crop === "string" && ["Rice","Wheat","Maize","Cotton","Sugarcane","Soybean","Tomato","Potato"].includes(crop)) : [],
     workspace: input.workspace === "insights" ? "insights" : "farmer",
     notifications: input.notifications !== false,
-    avatar: typeof input.avatar === "string" && input.avatar.length < 400000 && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(input.avatar) ? input.avatar : undefined,
+    avatar: typeof input.avatar === "string" && input.avatar.length < 400000
+      && (/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(input.avatar) || /^https:\/\/[^\s]+$/i.test(input.avatar))
+      ? input.avatar : undefined,
   };
   const state = typeof input.state === "string" ? input.state.trim().slice(0,100) : "";
   const district = typeof input.district === "string" ? input.district.trim().slice(0,100) : "";
-  sqlite.prepare("UPDATE accounts SET profile = ?, state = ?, district = ? WHERE id = ?").run(JSON.stringify(profile), state, district, res.locals.account.id);
-  res.json({...profile, state, district});
+  try {
+    if (usesSupabase() && !isSharedAuthProject()) {
+      const userId = (res.locals.account as Account).supabase_id;
+      if (!userId) {res.status(409).json({error:{message:"This account is not linked to Supabase."}});return;}
+      await saveSupabaseProfile(userId, profile, state, district);
+    }
+    sqlite.prepare("UPDATE accounts SET profile = ?, state = ?, district = ? WHERE id = ?").run(JSON.stringify(profile), state, district, res.locals.account.id);
+    res.json({...profile, state, district});
+  } catch(error) {next(error);}
 });
 router.post("/account/feedback", requireAccount, (req, res) => {
   const message = typeof req.body.message === "string" ? req.body.message.trim() : "";
@@ -171,7 +180,7 @@ router.get("/auth/config", (_req,res) => res.json({provider:usesSupabase()?"supa
 router.post("/auth/verify",limit,async(req,res) => {
   if(!usesSupabase()) {res.sendStatus(503);return;}
   if(typeof req.body.email !== "string" || typeof req.body.token !== "string" || !/^\d{6,10}$/.test(req.body.token)) {res.status(400).json({error:{message:"Enter the verification code from your email."}});return;}
-  try {const {data,error}=await supabase(req,res).auth.verifyOtp({email:req.body.email,token:req.body.token,type:"signup"}); if(error || !data.session || !data.user) {res.status(400).json({error:{message:"The code is invalid or expired."}});return;} startSession(res,syncSupabaseUser(data.user) as Account,data.session,{onboardingRequired:true});}
+  try {const {data,error}=await supabase(req,res).auth.verifyOtp({email:req.body.email,token:req.body.token,type:"signup"}); if(error || !data.session || !data.user) {res.status(400).json({error:{message:"The code is invalid or expired."}});return;} startSession(res,await syncSupabaseUser(data.user) as Account,data.session,{onboardingRequired:true});}
   catch {res.status(503).json({error:{message:"Email verification is unavailable."}});}
 });
 router.post("/auth/resend-verification",limit,async(req,res) => {
@@ -187,12 +196,13 @@ router.get("/auth/google",limit,async(req,res) => {
 });
 router.get("/auth/callback",limit,async(req,res) => {
   if(!usesSupabase() || typeof req.query.code !== "string") {res.redirect(`${frontendUrl()}/login?error=google`);return;}
-  try {const {data,error}=await supabase(req,res).auth.exchangeCodeForSession(req.query.code);if(error || !data.session || !data.user) throw error;const account=syncSupabaseUser(data.user) as Account;
+  try {const {data,error}=await supabase(req,res).auth.exchangeCodeForSession(req.query.code);if(error || !data.session || !data.user) throw error;const account=await syncSupabaseUser(data.user) as Account;
     // Reuse session creation, but send a redirect instead of JSON for the callback.
     const value=randomBytes(32).toString("hex"); const lifetime=Math.min(data.session.expires_in*1000,3600000);
     sqlite.prepare("INSERT INTO sessions (token_hash,account_id,expires_at,access_token,refresh_token) VALUES (?,?,?,?,?)").run(hash(value),account.id,Date.now()+lifetime,data.session.access_token,data.session.refresh_token);
     const savedProfile=JSON.parse(account.profile) as {name?:string};
-    res.cookie("wellfarm_session",value,{...cookieOptions,maxAge:lifetime});res.redirect(`${frontendUrl()}${savedProfile.name ? "/farmer" : "/onboarding"}`);
+    const profileComplete = Boolean(savedProfile.name && account.state && account.district);
+    res.cookie("wellfarm_session",value,{...cookieOptions,maxAge:lifetime});res.redirect(`${frontendUrl()}${profileComplete ? "/farmer" : "/onboarding"}`);
   }catch {res.redirect(`${frontendUrl()}/login?error=google`);}
 });
 export default router;

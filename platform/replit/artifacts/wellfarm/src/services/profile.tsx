@@ -26,7 +26,7 @@ export function normalizeProfile(value: unknown): Profile {
     ...(typeof data.city === "string" ? {city:data.city.trim().slice(0,100)} : {}),
     ...(typeof data.firstName === "string" ? {firstName:data.firstName.trim().slice(0,50)} : {}),
     ...(typeof data.lastName === "string" ? {lastName:data.lastName.trim().slice(0,50)} : {}),
-    ...(typeof data.avatar === "string" && data.avatar.length < 400000 && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(data.avatar) ? { avatar: data.avatar } : {}),
+    ...(typeof data.avatar === "string" && data.avatar.length < 400000 && (/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(data.avatar) || /^https:\/\/[^\s]+$/i.test(data.avatar)) ? { avatar: data.avatar } : {}),
     name: typeof data.name === "string" ? data.name.trim().slice(0, 80) : "",
     farm: typeof data.farm === "string" ? data.farm.trim().slice(0, 100) : "",
     crops: Array.isArray(data.crops) ? [...new Set(data.crops.filter(crop => crops.includes(crop as typeof crops[number])))].slice(0, crops.length) : [],
