@@ -17,6 +17,7 @@ import {
   CircleHelp,
   Clock3,
   CloudRain,
+  Database,
   Filter,
   History,
   Info,
@@ -248,19 +249,20 @@ export function PublicHome({
       <PublicNav locale={locale} setLocale={setLocale} />
       <section className="mx-auto grid max-w-[1240px] gap-10 px-5 pb-20 pt-14 md:pt-20 lg:grid-cols-[1.02fr_.98fr] lg:items-center lg:px-8 lg:pb-28">
         <div className="wf-enter">
-          <div className="mb-6 inline-flex items-center gap-2 border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-3 py-2 font-mono text-[10px] uppercase tracking-[.14em] text-[hsl(var(--primary))]">
+          <div className="mb-6 inline-flex items-center gap-2 border border-[hsl(var(--accent)/_.6)] bg-[hsl(var(--accent)/_.14)] px-3 py-2 font-mono text-[10px] uppercase tracking-[.14em] text-[hsl(var(--primary))]">
             <span className="h-2 w-2 rounded-full bg-[hsl(var(--accent))]" />
-            Open crop-health portfolio project
+            Built from 30 GB of crop imagery
           </div>
           <h1 className="max-w-[680px] text-5xl font-extrabold leading-[.98] tracking-[-.065em] text-[hsl(var(--primary))] md:text-7xl">
-            Understand what your crop image may be showing.{" "}
+            Crop intelligence with field-sized ambition.{" "}
             <span className="text-[hsl(var(--foreground))]">
-              Keep the evidence in one fieldbook.
+              One connected fieldbook.
             </span>
           </h1>
           <p className="mt-7 max-w-[560px] text-lg leading-8 text-[hsl(var(--muted-foreground))]">
-            Wellfarm combines image-based crop indications, live weather,
-            private scan history, and privacy-aware regional patterns.
+            Wellfarm turns a crop photo into an evidence-led health indication,
+            then connects it with live weather, private scan history, and
+            privacy-aware regional patterns.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Button href="/farmer" testId="button-hero-scan">
@@ -275,19 +277,30 @@ export function PublicHome({
               Explore regional insights <ArrowUpRight size={16} />
             </Button>
           </div>
-          <div className="mt-8 flex flex-wrap gap-2">
-            <Provenance kind="model" />
-            <Provenance kind="local" />
-            <Provenance kind="local" />
+          <div className="mt-10 grid max-w-[590px] grid-cols-3 border-y border-[hsl(var(--border))] py-4">
+            {[
+              ["30 GB", "source dataset"],
+              ["8", "crop categories"],
+              ["3", "signal layers"],
+            ].map(([value, label], index) => (
+              <div key={label} className={index ? "border-l border-[hsl(var(--border))] pl-4" : "pr-4"}>
+                <div className="text-2xl font-extrabold tracking-[-.04em] text-[hsl(var(--primary))] md:text-3xl">{value}</div>
+                <div className="mt-1 font-mono text-[9px] uppercase tracking-[.14em] text-[hsl(var(--muted-foreground))]">{label}</div>
+              </div>
+            ))}
           </div>
         </div>
         <div className="wf-enter wf-delay-2 relative border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-3 shadow-lg">
+          <div className="relative z-[401] mb-3 ml-auto w-fit border border-[hsl(var(--primary))] bg-[hsl(var(--accent))] px-4 py-3 text-[hsl(var(--accent-foreground))] shadow-md sm:absolute sm:-top-4 sm:right-5 sm:mb-0">
+            <div className="font-mono text-[8px] uppercase tracking-[.16em]">Model foundation</div>
+            <div className="mt-0.5 text-lg font-extrabold">30 GB dataset</div>
+          </div>
           <div className="flex items-center justify-between border-b border-[hsl(var(--border))] px-3 pb-3">
             <div>
               <div className="font-mono text-[9px] uppercase tracking-[.14em] text-[hsl(var(--muted-foreground))]">
-                Your saved fieldbook
+                Live product surface
               </div>
-              <div className="mt-1 text-sm font-bold">Your crop scans</div>
+              <div className="mt-1 text-sm font-bold">Your connected crop record</div>
             </div>
             <Provenance kind="local" />
           </div>
@@ -337,6 +350,35 @@ export function PublicHome({
                 </Link>
               ))}
             </div>
+          </div>
+        </div>
+      </section>
+      <section className="border-y border-[hsl(var(--primary))] bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]">
+        <div className="mx-auto grid max-w-[1240px] gap-10 px-5 py-12 lg:grid-cols-[.85fr_1.15fr] lg:items-center lg:px-8">
+          <div>
+            <div className="flex items-center gap-3 font-mono text-[10px] uppercase tracking-[.16em] text-[hsl(var(--sidebar-primary))]">
+              <Database size={16} /> Dataset to decision support
+            </div>
+            <div className="mt-4 flex items-end gap-3">
+              <div className="text-6xl font-extrabold leading-none tracking-[-.065em] text-[hsl(var(--accent))] md:text-8xl">30</div>
+              <div className="pb-1 text-3xl font-extrabold md:pb-2 md:text-4xl">GB</div>
+            </div>
+            <p className="mt-4 max-w-md text-sm leading-6 text-[hsl(var(--primary-foreground)/_.72)]">
+              The visual model is backed by a substantial crop-image dataset—not placeholder records or a simulated dashboard.
+            </p>
+          </div>
+          <div className="grid gap-px border border-[hsl(var(--primary-foreground)/_.18)] bg-[hsl(var(--primary-foreground)/_.18)] sm:grid-cols-3">
+            {[
+              ["01", "Image evidence", "A crop photo begins every health record."],
+              ["02", "Live context", "Weather stays visible beside model evidence."],
+              ["03", "Regional signal", "Shared scans become privacy-aware local patterns."],
+            ].map(([number, title, text]) => (
+              <div key={number} className="bg-[hsl(var(--primary))] p-5">
+                <div className="font-mono text-[10px] text-[hsl(var(--sidebar-primary))]">{number}</div>
+                <h2 className="mt-8 text-xl font-extrabold">{title}</h2>
+                <p className="mt-2 text-sm leading-6 text-[hsl(var(--primary-foreground)/_.68)]">{text}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
